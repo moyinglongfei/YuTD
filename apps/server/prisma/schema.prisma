@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Todo {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+
+  completed Boolean @default(false)
+
+  priority Int @default(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dueDate     DateTime?
+  plannedDate DateTime?
+
+  estimatedTime Int?
+  actualTime    Int?
+
+  reminderTime DateTime?
+
+  tags String?
+
+  phaseId Int
+  phase   Phase @relation(fields: [phaseId], references: [id], onDelete: Restrict)
+
+  eventId Int?
+  event   Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  status TodoStatus @default(TODO)
+}
+
+enum TodoStatus {
+  TODO
+  DOING
+  DONE
+  CANCELLED
+}
+
+model Phase {
+  id        Int      @id @default(autoincrement())
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]
+  todos     Todo[]
+}
+
+model Event {
+  id        Int             @id @default(autoincrement())
+  name      String
+  organizer String?
+  location  String?
+  color     String?
+  phaseId   Int
+  phase     Phase           @relation(fields: [phaseId], references: [id], onDelete: Restrict)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  schedules EventSchedule[]
+  todos     Todo[]
+}
+
+model EventSchedule {
+  id        Int      @id @default(autoincrement())
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String
+  startWeek Int
+  endWeek   Int
+  weekType  WeekType @default(ALL)
+  location  String?
+}
+
+enum WeekType {
+  ALL
+  ODD
+  EVEN
+}
+
+model Style {
+  id                      Int      @id @default(autoincrement())
+  defaultLocale           String   @default("zh-CN")
+  scheduleBackground      String   @default("#f4efe7")
+  schedulePanelBackground String   @default("rgba(255,255,255,0.82)")
+  scheduleGridLineColor   String   @default("rgba(226,232,240,0.9)")
+  scheduleSlotHeight      Int      @default(72)
+  scheduleSlotGap         Int      @default(8)
+  presetName              String   @default("campus")
+  coursePalette           String   @default("[\"#0f766e\",\"#1d4ed8\",\"#be123c\",\"#7c3aed\"]")
+  schedulePageClass       String   @default("")
+  scheduleBoardClass      String   @default("")
+  scheduleCardClass       String   @default("")
+  customCss               String   @default("")
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}

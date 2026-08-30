@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+
+# build output
+out/
+dist/
+dist-ssr/
+.vite-ssg-dist/
+.vite-ssg-temp/
+*.tgz
+
+# code coverage
+coverage/
+*.lcov
+
+# logs
+logs/
+*.log
+report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+
+# environment variables
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+*.local
+
+# caches
+.eslintcache
+.cache/
+*.tsbuildinfo
+
+# editors and operating systems
+.idea/
+.DS_Store
+
+# frontend generated files
+cypress/downloads/
+public/assets/fonts/
+
+# local legacy frontend
+/legacy-web/
+
+# server generated and local runtime data
+/apps/server/generated/prisma/
+/apps/server/config.yaml
+/apps/server/dev.db
+/apps/server/dev.db-*
+*.db-journal
