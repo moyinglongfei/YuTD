@@ -21,7 +21,6 @@ export abstract class ConfigService {
 
   static update(data: Partial<ConfigModelType['newConfig']>) {
     _config = patchConfig(data)
-
-    return _config
+    return this.getPublic()
   }
 }

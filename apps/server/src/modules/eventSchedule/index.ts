@@ -9,6 +9,10 @@ export const eventScheduleRoutes = new Elysia({ prefix: '/api/event-schedule' })
   .post('/', ({ body }) => EventScheduleService.create(body), {
     body: EventScheduleModel.create,
   })
+  .patch('/:id', ({ params, body }) => EventScheduleService.update(params.id, body), {
+    params: t.Object({ id: t.Numeric() }),
+    body: t.Partial(EventScheduleModel.create),
+  })
   .delete('/:id', ({ params }) => EventScheduleService.delete(params.id), {
     params: t.Object({ id: t.Numeric() }),
   })

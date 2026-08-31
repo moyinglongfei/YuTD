@@ -9,6 +9,7 @@ datasource db {
   provider = "sqlite"
 }
 
+// 待办事项
 model Todo {
   id          Int     @id @default(autoincrement())
   title       String
@@ -47,6 +48,7 @@ enum TodoStatus {
   CANCELLED
 }
 
+// 阶段
 model Phase {
   id        Int      @id @default(autoincrement())
   name      String
@@ -58,6 +60,7 @@ model Phase {
   todos     Todo[]
 }
 
+// 事件
 model Event {
   id        Int             @id @default(autoincrement())
   name      String
@@ -72,6 +75,7 @@ model Event {
   todos     Todo[]
 }
 
+// 事件日程
 model EventSchedule {
   id        Int      @id @default(autoincrement())
   eventId   Int
@@ -79,16 +83,8 @@ model EventSchedule {
   weekday   Int
   startTime String
   endTime   String
-  startWeek Int
-  endWeek   Int
-  weekType  WeekType @default(ALL)
+  weeks     Json
   location  String?
-}
-
-enum WeekType {
-  ALL
-  ODD
-  EVEN
 }
 
 model Style {

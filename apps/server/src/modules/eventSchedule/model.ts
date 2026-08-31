@@ -1,11 +1,7 @@
 import { t } from 'elysia'
+import type { UnwrapSchema } from 'elysia'
 
 const timeSchema = t.String({ pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' })
-const weekTypeSchema = t.Union([
-  t.Literal('ALL'),
-  t.Literal('ODD'),
-  t.Literal('EVEN'),
-])
 
 export const EventScheduleModel = {
   create: t.Object({
@@ -13,9 +9,11 @@ export const EventScheduleModel = {
     weekday: t.Number({ minimum: 1, maximum: 7 }),
     startTime: timeSchema,
     endTime: timeSchema,
-    startWeek: t.Number({ minimum: 1 }),
-    endWeek: t.Number({ minimum: 1 }),
-    weekType: t.Optional(weekTypeSchema),
+    weeks: t.Array(t.Integer({ minimum: 1 }), { minItems: 1, uniqueItems: true }),
     location: t.Optional(t.String()),
   }),
+}
+
+export type EventScheduleModelType = {
+  [k in keyof typeof EventScheduleModel]: UnwrapSchema<typeof EventScheduleModel[k]>
 }
