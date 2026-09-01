@@ -15,7 +15,7 @@ export abstract class EventService {
       include: {
         phase: true,
         schedules: true,
-        _count: { select: { todos: true } },
+        _count: { select: { tasks: true } },
       },
       orderBy: { createdAt: 'desc' },
     })

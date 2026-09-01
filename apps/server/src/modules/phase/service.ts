@@ -38,7 +38,7 @@ export abstract class PhaseService {
   static async getAll() {
     const phases = await prisma.phase.findMany({
       include: {
-        _count: { select: { events: true, todos: true } },
+        _count: { select: { events: true, tasks: true } },
       },
       orderBy: { startDate: 'asc' },
     })
@@ -49,7 +49,7 @@ export abstract class PhaseService {
     const phase = await prisma.phase.findUnique({
       where: { id },
       include: {
-        _count: { select: { events: true, todos: true } },
+        _count: { select: { events: true, tasks: true } },
       },
     })
     if (!phase)

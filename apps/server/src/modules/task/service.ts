@@ -1,29 +1,11 @@
 import type { Prisma } from '@/../../generated/prisma/client'
-import type { TodoStatus } from '@/../../generated/prisma/enums'
+import type { TaskModelType } from '@/modules/task/model'
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
 import { prisma } from '@/lib/prisma'
 
-interface TaskFilters {
-  status?: TodoStatus
-  phaseId?: number
-  eventId?: number
-  tag?: string
-}
-
-interface TaskInput {
-  title?: string
-  description?: string
-  priority?: number
-  dueDate?: string
-  phaseId?: number
-  eventId?: number
-  status?: TodoStatus
-  isDone?: boolean
-}
-
 async function validateRelations(phaseId?: number, eventId?: number) {
   if (!phaseId)
-    throw new BadRequestException('请选择待办所属阶段')
+    throw new BadRequestException('请选择任务所属阶段')
 
   const phase = await prisma.phase.findUnique({ where: { id: phaseId } })
   if (!phase)
@@ -34,50 +16,86 @@ async function validateRelations(phaseId?: number, eventId?: number) {
     if (!event)
       throw new BadRequestException('关联事件不存在')
     if (event.phaseId !== phaseId)
-      throw new BadRequestException('关联事件与待办不属于同一阶段')
+      throw new BadRequestException('关联事件与任务不属于同一阶段')
   }
 }
 
-function toPrismaData(data: TaskInput): Prisma.TodoUncheckedCreateInput | Prisma.TodoUncheckedUpdateInput {
-  const { isDone, dueDate, ...rest } = data
+function parseDateTime(value: string, field: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime()))
+    throw new BadRequestException(`${field}格式无效`)
+  return date
+}
+
+function normalizeReminderTimes(values: string[]) {
+  return [...new Set(values.map(value => parseDateTime(value, '提醒时间').toISOString()))]
+    .map(time => ({ time: new Date(time) }))
+}
+
+function normalizeTags(values: string[]) {
+  return [...new Set(values.map(value => value.trim()).filter(Boolean))]
+    .map(name => ({ name }))
+}
+
+function toPrismaData(data: TaskModelType['update'], replaceCollections = false) {
+  const { isDone, dueDate, reminderTimes, tags, ...rest } = data
   return {
     ...rest,
-    dueDate: dueDate ? new Date(dueDate) : undefined,
+    dueDate: dueDate ? parseDateTime(dueDate, '截止时间') : undefined,
     completed: isDone,
+    reminders: reminderTimes
+      ? {
+          ...(replaceCollections ? { deleteMany: {} } : {}),
+          create: normalizeReminderTimes(reminderTimes),
+        }
+      : undefined,
+    tags: tags
+      ? {
+          ...(replaceCollections ? { deleteMany: {} } : {}),
+          create: normalizeTags(tags),
+        }
+      : undefined,
   }
+}
+
+const taskInclude = {
+  phase: true,
+  event: true,
+  reminders: { orderBy: { time: 'asc' as const } },
+  tags: { orderBy: { name: 'asc' as const } },
 }
 
 export abstract class TaskService {
-  static async findMany(filters: TaskFilters) {
-    const where: Prisma.TodoWhereInput = {}
+  static async findMany(filters: TaskModelType['query']) {
+    const where: Prisma.TaskWhereInput = {}
     if (filters.status)
-      where.status = filters.status as TodoStatus
+      where.status = filters.status
     if (filters.phaseId)
       where.phaseId = filters.phaseId
     if (filters.eventId)
       where.eventId = filters.eventId
     if (filters.tag)
-      where.tags = { contains: filters.tag }
+      where.tags = { some: { name: filters.tag } }
 
-    const todos = await prisma.todo.findMany({
+    const tasks = await prisma.task.findMany({
       where,
-      include: { phase: true, event: true },
+      include: taskInclude,
       orderBy: { createdAt: 'desc' },
     })
-    return todos.map(todo => ({ ...todo, isDone: todo.completed }))
+    return tasks.map(task => ({ ...task, isDone: task.completed }))
   }
 
-  static async create(data: TaskInput & { title: string, phaseId: number }) {
+  static async create(data: TaskModelType['create'] & { title: string, phaseId: number }) {
     await validateRelations(data.phaseId, data.eventId)
-    const todo = await prisma.todo.create({
-      data: toPrismaData(data) as Prisma.TodoUncheckedCreateInput,
-      include: { phase: true, event: true },
+    const task = await prisma.task.create({
+      data: toPrismaData(data) as Prisma.TaskUncheckedCreateInput,
+      include: taskInclude,
     })
-    return { ...todo, isDone: todo.completed }
+    return { ...task, isDone: task.completed }
   }
 
-  static async update(id: number, data: TaskInput) {
-    const exists = await prisma.todo.findUnique({ where: { id } })
+  static async update(id: number, data: TaskModelType['update']) {
+    const exists = await prisma.task.findUnique({ where: { id } })
     if (!exists)
       throw new NotFoundException('找不到这个任务喵！')
 
@@ -85,11 +103,11 @@ export abstract class TaskService {
     const eventId = data.eventId ?? exists.eventId ?? undefined
     await validateRelations(phaseId, eventId)
 
-    const todo = await prisma.todo.update({
+    const task = await prisma.task.update({
       where: { id },
-      data: toPrismaData(data) as Prisma.TodoUncheckedUpdateInput,
-      include: { phase: true, event: true },
+      data: toPrismaData(data, true) as Prisma.TaskUncheckedUpdateInput,
+      include: taskInclude,
     })
-    return { ...todo, isDone: todo.completed }
+    return { ...task, isDone: task.completed }
   }
 }

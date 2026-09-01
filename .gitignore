@@ -20,6 +20,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # environment variables
 .env
+.env.*
+!.env.example
 .env.development.local
 .env.test.local
 .env.production.local
@@ -31,8 +33,15 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache/
 *.tsbuildinfo
 
+# Nuxt generated files
+.nuxt/
+.output/
+.nitro/
+.data/
+
 # editors and operating systems
 .idea/
+.fleet/
 .DS_Store
 
 # frontend generated files

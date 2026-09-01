@@ -9,8 +9,8 @@ datasource db {
   provider = "sqlite"
 }
 
-// 待办事项
-model Todo {
+// 任务
+model Task {
   id          Int     @id @default(autoincrement())
   title       String
   description String?
@@ -28,9 +28,8 @@ model Todo {
   estimatedTime Int?
   actualTime    Int?
 
-  reminderTime DateTime?
-
-  tags String?
+  reminders TaskReminder[]
+  tags      TaskTag[]
 
   phaseId Int
   phase   Phase @relation(fields: [phaseId], references: [id], onDelete: Restrict)
@@ -38,10 +37,30 @@ model Todo {
   eventId Int?
   event   Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
-  status TodoStatus @default(TODO)
+  status TaskStatus @default(TODO)
 }
 
-enum TodoStatus {
+model TaskReminder {
+  id     Int      @id @default(autoincrement())
+  time   DateTime
+  taskId Int
+  task   Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, time])
+  @@index([time])
+}
+
+model TaskTag {
+  id     Int    @id @default(autoincrement())
+  name   String
+  taskId Int
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, name])
+  @@index([name])
+}
+
+enum TaskStatus {
   TODO
   DOING
   DONE
@@ -57,7 +76,7 @@ model Phase {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   events    Event[]
-  todos     Todo[]
+  tasks     Task[]
 }
 
 // 事件
@@ -72,14 +91,14 @@ model Event {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   schedules EventSchedule[]
-  todos     Todo[]
+  tasks     Task[]
 }
 
 // 事件日程
 model EventSchedule {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   eventId   Int
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   weekday   Int
   startTime String
   endTime   String
