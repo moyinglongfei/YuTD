@@ -1,7 +1,7 @@
 import { jwt } from '@elysiajs/jwt'
 import { Elysia, t } from 'elysia'
 import { UnauthorizedException } from 'elysia-http-exception'
-import { ConfigService } from '@/modules/config/service'
+import { ConfigService } from '#backend/modules/config/service'
 
 export function getLoginRoutes() {
   const config = ConfigService.get()

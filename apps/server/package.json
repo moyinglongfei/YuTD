@@ -1,14 +1,19 @@
 {
-  "name": "server",
+  "name": "@yutd/server",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "qa": "prisma db seed"
+  },
+  "exports": {
+    ".": "./src/index.ts"
   },
   "dependencies": {
+    "@elysia/eden": "^1.4.10",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.2",
     "@elysiajs/openapi": "^1.4.15",

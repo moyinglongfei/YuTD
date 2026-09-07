@@ -3,14 +3,14 @@ import { cors } from '@elysiajs/cors'
 import { openapi } from '@elysiajs/openapi'
 import { Elysia } from 'elysia'
 
-import { authGuard, getLoginRoutes } from '@/lib/auth'
-import { configRoutes } from '@/modules/config'
-import { ConfigService } from '@/modules/config/service'
-import { eventRoutes } from '@/modules/event'
-import { eventScheduleRoutes } from '@/modules/eventSchedule'
-import { phaseRoutes } from '@/modules/phase'
-import { styleRoutes } from '@/modules/style'
-import { taskRoutes } from '@/modules/task/index'
+import { authGuard, getLoginRoutes } from '#backend/lib/auth'
+import { configRoutes } from '#backend/modules/config'
+import { ConfigService } from '#backend/modules/config/service'
+import { eventRoutes } from '#backend/modules/event'
+import { eventScheduleRoutes } from '#backend/modules/eventSchedule'
+import { phaseRoutes } from '#backend/modules/phase'
+import { styleRoutes } from '#backend/modules/style'
+import { taskRoutes } from '#backend/modules/task/index'
 import { httpPlugin } from './lib/http'
 
 try {
@@ -40,3 +40,5 @@ const app = new Elysia()
 app.listen({ port: config.system.port, hostname: config.system.host }, () => {
   console.warn(`YuTD 后端成功运行在 http://${config.system.host}:${config.system.port}`)
 })
+
+export type App = typeof app

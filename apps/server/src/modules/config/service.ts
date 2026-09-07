@@ -1,7 +1,7 @@
-import type { ConfigModelType } from '@/modules/config/model'
+import type { ConfigModelType } from '#backend/modules/config/model'
 import { Value } from '@sinclair/typebox/value'
-import { loadConfig, patchConfig } from '@/lib/config'
-import { ConfigModel } from '@/modules/config/model'
+import { loadConfig, patchConfig } from '#backend/lib/config'
+import { ConfigModel } from '#backend/modules/config/model'
 
 let _config: ConfigModelType['config']
 

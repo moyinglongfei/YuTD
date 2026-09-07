@@ -1,5 +1,5 @@
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '#backend/lib/prisma'
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 

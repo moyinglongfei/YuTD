@@ -1,6 +1,6 @@
 import type { UnwrapSchema } from 'elysia'
 import { t } from 'elysia'
-import { TaskStatus } from '@/../../generated/prisma/enums'
+import { TaskStatus } from '#prisma/enums'
 
 const taskStatusSchema = t.Enum(TaskStatus)
 

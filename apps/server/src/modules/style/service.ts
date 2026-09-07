@@ -1,5 +1,5 @@
 import type { StyleModelType } from './model'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '#backend/lib/prisma'
 
 function parsePalette(value: string) {
   try {

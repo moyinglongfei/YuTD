@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.vscode/
 
 # build output
 out/
@@ -48,12 +49,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 cypress/downloads/
 public/assets/fonts/
 
-# local legacy frontend
-/legacy-web/
-
 # server generated and local runtime data
 /apps/server/generated/prisma/
 /apps/server/config.yaml
 /apps/server/dev.db
 /apps/server/dev.db-*
+/apps/server/prisma/seed.ts
 *.db-journal

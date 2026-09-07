@@ -1,11 +1,11 @@
-import type { ConfigModelType } from '@/modules/config/model'
+import type { ConfigModelType } from '#backend/modules/config/model'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { Value } from '@sinclair/typebox/value'
 import YAML from 'yaml'
-import { ConfigModel } from '@/modules/config/model'
+import { ConfigModel } from '#backend/modules/config/model'
 
 const CONFIG_PATH = path.resolve(process.cwd(), './config.yaml')
 const CONFIG_EXAMPLE_PATH = path.resolve(process.cwd(), './config.example.yaml')

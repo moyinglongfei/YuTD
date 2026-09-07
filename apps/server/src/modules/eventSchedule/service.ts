@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
-import { prisma } from '@/lib/prisma'
-import { getPhaseWeekCount } from '@/modules/phase/service'
-import type { EventScheduleModelType } from '@/modules/eventSchedule/model'
+import { prisma } from '#backend/lib/prisma'
+import { getPhaseWeekCount } from '#backend/modules/phase/service'
+import type { EventScheduleModelType } from '#backend/modules/eventSchedule/model'
 
 function validateTimeRange(startTime: string, endTime: string) {
   if (startTime >= endTime)

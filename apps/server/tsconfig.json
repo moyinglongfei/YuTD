@@ -10,7 +10,8 @@
     // Bundler mode
     "moduleResolution": "bundler",
     "paths": {
-      "@/*": ["src/*"]
+      "#backend/*": ["src/*"],
+      "#prisma/*": ["./generated/prisma/*"]
     },
     "allowImportingTsExtensions": true,
 

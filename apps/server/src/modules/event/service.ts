@@ -1,6 +1,6 @@
-import type { Prisma } from '@/../../generated/prisma/client'
+import type { Prisma } from '#prisma/client'
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '#backend/lib/prisma'
 
 async function ensurePhase(phaseId: number) {
   const phase = await prisma.phase.findUnique({ where: { id: phaseId } })
