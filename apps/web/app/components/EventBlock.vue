@@ -88,7 +88,7 @@ const layout = computed(() => {
   <button
     v-if="layout"
     type="button"
-    class="event-block absolute z-10 overflow-hidden rounded-lg border px-2.5 py-2 text-left shadow-sm transition duration-150 hover:z-20 hover:-translate-y-0.5 hover:shadow-md focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--event-color)"
+    class="event-block"
     :style="layout.style"
     :aria-label="`${name}，${startTime} 至 ${endTime}${location ? `，${location}` : ''}`"
     :data-event-id="id"
@@ -100,15 +100,15 @@ const layout = computed(() => {
       :duration-minutes="layout.durationMinutes"
       :is-clipped="layout.isClipped"
     >
-      <span class="block truncate text-sm font-semibold leading-tight text-slate-900">
+      <span class="event-block__title">
         {{ name }}
       </span>
-      <span class="mt-1 block truncate text-xs font-medium text-slate-700">
+      <span class="event-block__time">
         {{ startTime }}–{{ endTime }}
       </span>
       <span
         v-if="location && layout.durationMinutes >= 60"
-        class="mt-1 block truncate text-xs text-slate-600"
+        class="event-block__location"
       >
         {{ location }}
       </span>
@@ -118,8 +118,62 @@ const layout = computed(() => {
 
 <style scoped>
 .event-block {
+  position: absolute;
+  z-index: 10;
+  overflow: hidden;
+  padding: 0.5rem 0.625rem;
   border-color: color-mix(in srgb, var(--event-color) 48%, white);
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 0.5rem;
   background: color-mix(in srgb, var(--event-color) 18%, white);
   box-shadow: inset 3px 0 0 var(--event-color), 0 3px 12px rgb(15 23 42 / 8%);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.event-block:hover {
+  z-index: 20;
+  box-shadow: inset 3px 0 0 var(--event-color), 0 8px 18px rgb(15 23 42 / 14%);
+  transform: translateY(-0.125rem);
+}
+
+.event-block:focus-visible {
+  z-index: 20;
+  outline: 2px solid var(--event-color);
+  outline-offset: 2px;
+}
+
+.event-block__title,
+.event-block__time,
+.event-block__location {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-block__title {
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.event-block__time,
+.event-block__location {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.event-block__time {
+  color: #334155;
+  font-weight: 500;
+}
+
+.event-block__location {
+  color: #475569;
 }
 </style>

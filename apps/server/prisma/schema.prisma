@@ -22,11 +22,11 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  dueDate     DateTime?
-  plannedDate DateTime?
+  dueDate     DateTime? //截止日期
+  plannedDate DateTime? //计划日期(预计扩充成多日期)
 
-  estimatedTime Int?
-  actualTime    Int?
+  estimatedTime Int?  //预计花费时间
+  actualTime    Int?  //实际花费时间
 
   reminders TaskReminder[]
   tags      TaskTag[]

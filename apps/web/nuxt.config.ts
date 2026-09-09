@@ -10,6 +10,11 @@ export default defineNuxtConfig({
     enabled: true
   },
   css: ['~/assets/css/main.css'],
+  runtimeConfig: {
+    public: {
+      apiBase: 'http://localhost:3000'
+    }
+  },
   alias: {
     '#backend': fileURLToPath(new URL('../server/src', import.meta.url)),
     '#prisma': fileURLToPath(new URL('../server/generated/prisma', import.meta.url))
