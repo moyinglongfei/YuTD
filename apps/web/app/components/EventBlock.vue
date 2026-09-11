@@ -1,179 +1,113 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
-interface EventBlockProps {
-  id: number
-  name: string
-  organizer?: string | null
-  location?: string | null
+const props = defineProps<{
+  top: number
+  height: number
   color?: string | null
-  phaseId: number
-  weekday: number
+  eventId: number
+  eventName: string
   startTime: string
   endTime: string
-  weeks: number[]
-  createdAt?: Date | string
-  updatedAt?: Date | string
-  dayStart?: string
-  dayEnd?: string
-  hourHeight?: number
-  columnGap?: number
-  minHeight?: number
-}
+}>()
 
-const props = withDefaults(defineProps<EventBlockProps>(), {
-  organizer: null,
-  location: null,
-  color: '#0f766e',
-  createdAt: undefined,
-  updatedAt: undefined,
-  dayStart: '08:00',
-  dayEnd: '22:00',
-  hourHeight: 72,
-  columnGap: 8,
-  minHeight: 32
-})
-
-function toMinutes(value: string) {
-  const match = /^(\d{2}):(\d{2})$/.exec(value)
-  if (!match)
-    return null
-
-  const hour = Number(match[1])
-  const minute = Number(match[2])
-  if (hour > 23 || minute > 59)
-    return null
-
-  return hour * 60 + minute
-}
-
-const layout = computed(() => {
-  const start = toMinutes(props.startTime)
-  const end = toMinutes(props.endTime)
-  const dayStart = toMinutes(props.dayStart)
-  const dayEnd = toMinutes(props.dayEnd)
-
-  if (start === null || end === null || dayStart === null || dayEnd === null)
-    return null
-  if (end <= start || dayEnd <= dayStart || props.weekday < 1 || props.weekday > 7)
-    return null
-
-  const visibleStart = Math.max(start, dayStart)
-  const visibleEnd = Math.min(end, dayEnd)
-  if (visibleEnd <= visibleStart)
-    return null
-
-  const columnWidth = 100 / 7
-  const gap = Math.max(0, props.columnGap)
-  const top = (visibleStart - dayStart) / 60 * props.hourHeight
-  const availableHeight = (dayEnd - visibleStart) / 60 * props.hourHeight
-  const naturalHeight = (visibleEnd - visibleStart) / 60 * props.hourHeight
-  const height = Math.min(Math.max(naturalHeight, props.minHeight), availableHeight)
-
-  return {
-    durationMinutes: end - start,
-    isClipped: start < dayStart || end > dayEnd,
-    style: {
-      '--event-color': props.color ?? '#0f766e',
-      'top': `${top}px`,
-      'left': `calc(${(props.weekday - 1) * columnWidth}% + ${gap / 2}px)`,
-      'width': `calc(${columnWidth}% - ${gap}px)`,
-      'height': `${height}px`
-    }
-  }
-})
+const blockStyle = computed(() => ({
+  'top': `${props.top}px`,
+  'height': `${props.height}px`,
+  '--event-color': props.color ?? '#6366f1'
+}))
 </script>
 
 <template>
-  <button
-    v-if="layout"
-    type="button"
+  <div
     class="event-block"
-    :style="layout.style"
-    :aria-label="`${name}，${startTime} 至 ${endTime}${location ? `，${location}` : ''}`"
-    :data-event-id="id"
-    :data-phase-id="phaseId"
-    :data-weekday="weekday"
-    :data-clipped="layout.isClipped || undefined"
+    :style="blockStyle"
+    :data-event-id="eventId"
   >
-    <slot
-      :duration-minutes="layout.durationMinutes"
-      :is-clipped="layout.isClipped"
+    <div
+      class="event-block-corners"
+      aria-hidden="true"
     >
-      <span class="event-block__title">
-        {{ name }}
+      <span class="event-corner event-corner-tl" />
+      <span class="event-corner event-corner-tr" />
+      <span class="event-corner event-corner-bl" />
+      <span class="event-corner event-corner-br" />
+    </div>
+    <div class="event-block-content">
+      <span class="event-block-start-time">
+        {{ startTime }}
       </span>
-      <span class="event-block__time">
-        {{ startTime }}–{{ endTime }}
+      <strong class="event-block-title">
+        {{ eventName }}
+      </strong>
+      <span class="event-block-end-time">
+        {{ endTime }}
       </span>
-      <span
-        v-if="location && layout.durationMinutes >= 60"
-        class="event-block__location"
-      >
-        {{ location }}
-      </span>
-    </slot>
-  </button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
 .event-block {
   position: absolute;
-  z-index: 10;
+  z-index: 2;
+  right: 4px;
+  left: 4px;
+  box-sizing: border-box;
   overflow: hidden;
-  padding: 0.5rem 0.625rem;
-  border-color: color-mix(in srgb, var(--event-color) 48%, white);
+
+  --corner-size: 14px;
+  --corner-width: 3px;
+}
+/* 事件方框的装饰圆角 */
+.event-block-corners {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+
+  pointer-events: none;
+}
+.event-corner {
+  position: absolute;
+
+  width: var(--corner-size);
+  height: var(--corner-size);
+
+  border-color: var(--event-color);
   border-style: solid;
-  border-width: 1px;
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--event-color) 18%, white);
-  box-shadow: inset 3px 0 0 var(--event-color), 0 3px 12px rgb(15 23 42 / 8%);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: box-shadow 150ms ease, transform 150ms ease;
+  border-width: 0;
 }
+.event-corner-tl {
+  top: 0;
+  left: 0;
 
-.event-block:hover {
-  z-index: 20;
-  box-shadow: inset 3px 0 0 var(--event-color), 0 8px 18px rgb(15 23 42 / 14%);
-  transform: translateY(-0.125rem);
+  border-top-width: var(--corner-width);
+  border-left-width: var(--corner-width);
 }
+.event-corner-tr {
+  top: 0;
+  right: 0;
 
-.event-block:focus-visible {
-  z-index: 20;
-  outline: 2px solid var(--event-color);
-  outline-offset: 2px;
+  border-top-width: var(--corner-width);
+  border-right-width: var(--corner-width);
 }
+.event-corner-bl {
+  bottom: 0;
+  left: 0;
 
-.event-block__title,
-.event-block__time,
-.event-block__location {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-bottom-width: var(--corner-width);
+  border-left-width: var(--corner-width);
 }
+.event-corner-br {
+  right: 0;
+  bottom: 0;
 
-.event-block__title {
-  color: #0f172a;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25;
+  border-right-width: var(--corner-width);
+  border-bottom-width: var(--corner-width);
 }
+/* 事件的具体内容 */
+.event-block-content {
+  display: grid;
 
-.event-block__time,
-.event-block__location {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-}
-
-.event-block__time {
-  color: #334155;
-  font-weight: 500;
-}
-
-.event-block__location {
-  color: #475569;
+  grid-template-rows: auto minmax(20px, 1fr) auto;
+  height: 100%;
 }
 </style>
