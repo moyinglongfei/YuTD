@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { requestApiData } from '~/utils/api'
 import EventBlock from '~/components/EventBlock.vue'
+import { gsap } from 'gsap'
 
 const props = defineProps<{
   phaseId: number
 }>()
 
+// 数据获取
 const { $api } = useNuxtApp()
 
 const [events, tasks, phase] = await Promise.all([
@@ -68,7 +70,6 @@ const miniStartMinutes = startMinutes.length ? Math.min(...startMinutes) : 8 * 6
 const maxEndMinutes = endMinutes.length ? Math.max(...endMinutes) : 22 * 60
 const scheduleStartMinutes = Math.floor(miniStartMinutes / 60) * 60
 const scheduleEndMinutes = Math.ceil(maxEndMinutes / 60) * 60
-
 const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const maxWeek = phase.weekCount
 const hourMarks = Array.from(
@@ -79,9 +80,96 @@ const hourMarks = Array.from(
   (_, index: number) => scheduleStartMinutes + index * 60
 )
 
-//
+// 焦点缩放
+const focus = reactive({
+  progress: 0
+})
+const displayHourPixels = computed(() => {
+  return hourPixels.value * (1 + 2 * focus.progress)
+})
+const selectedBlockKey = ref<string | null>(null)
+const viewport = ref<HTMLDivElement | null>(null)
+let focusTween: ReturnType<typeof gsap.to> | undefined
+let focusElement: HTMLElement | null = null
+let anchorY = 0
+function rememberCenter(element: HTMLElement) {
+  const container = viewport.value
+
+  if (!container)
+    return
+
+  focusElement = element
+
+  const cardRect = element.getBoundingClientRect()
+  const containerRect = container.getBoundingClientRect()
+
+  anchorY = cardRect.top
+    + cardRect.height / 2
+    - containerRect.top
+}
+function keepCenter() {
+  const container = viewport.value
+  const element = focusElement
+
+  if (!container || !element || !element.isConnected)
+    return
+
+  const cardRect = element.getBoundingClientRect()
+  const containerRect = container.getBoundingClientRect()
+
+  const currentY = cardRect.top
+    + cardRect.height / 2
+    - containerRect.top
+
+  container.scrollTop += currentY - anchorY
+}
+watch(
+  () => focus.progress,
+  keepCenter,
+  { flush: 'post' }
+)// 监视焦点缩放进度，保持选中元素居中
+
+function openFocus(key: string, element: HTMLElement) {
+  focusTween?.kill()
+
+  rememberCenter(element)
+  selectedBlockKey.value = key
+
+  focusTween = gsap.to(focus, {
+    progress: 1,
+    duration: 0.35,
+    ease: 'power2.inOut'
+  })
+}
+
+function closeFocus() {
+  if (selectedBlockKey.value === null)
+    return
+
+  focusTween?.kill()
+
+  if (focusElement)
+    rememberCenter(focusElement)
+
+  focusTween = gsap.to(focus, {
+    progress: 0,
+    duration: 0.35,
+    ease: 'power2.inOut',
+    onComplete() {
+      selectedBlockKey.value = null
+    }
+  })
+}
+
+onBeforeUnmount(() => {
+  focusTween?.kill()
+})
+
+// 呈现事件，任务组件
 function minutesToY(minutes: number) {
-  return (minutes - scheduleStartMinutes) * (hourPixels.value / 60) + edgePixels.value
+  return (minutes - scheduleStartMinutes)
+    * (displayHourPixels.value / 60)
+    + edgePixels.value
 }
 const week = ref(1)
 const hourPixels = ref(72)
@@ -90,7 +178,13 @@ const boardHeight = computed(() => minutesToY(scheduleEndMinutes) + edgePixels.v
 
 const eventBlocks = computed(() =>
   events.flatMap(event =>
-    event.schedules.map((schedule) => {
+    event.schedules.flatMap((schedule) => {
+      const currentWeek = Number(week.value)
+      if (Array.isArray(schedule.weeks)) {
+        if (!schedule.weeks.includes(currentWeek)) {
+          return []
+        }
+      }
       const start = timeToMinutes(schedule.startTime)
       const end = timeToMinutes(schedule.endTime)
 
@@ -99,7 +193,7 @@ const eventBlocks = computed(() =>
         weekday: schedule.weekday,
         color: event.color,
         top: minutesToY(start),
-        height: (end - start) * (hourPixels.value / 60),
+        height: (end - start) * (displayHourPixels.value / 60),
         eventId: event.id,
         eventName: event.name,
         startTime: schedule.startTime,
@@ -169,6 +263,7 @@ const taskLines = computed(() => {
     :max="maxWeek"
     :step="1"
     :label="`Weekday: ${week}`"
+    :disabled="selectedBlockKey !== null"
   />
   <p>{{ week }}</p>
   <USlider
@@ -177,9 +272,14 @@ const taskLines = computed(() => {
     :max="91"
     :step="1"
     :label="`${hourPixels}px`"
+    :disabled="selectedBlockKey !== null"
   />
   <p>{{ hourPixels }}</p>
-  <div class="schedule-viewport">
+  <div
+    ref="viewport"
+    class="schedule-viewport"
+    @click="closeFocus"
+  >
     <section class="schedule">
       <div class="schedule-header">
         <div class="schedule-header-time">
@@ -226,6 +326,8 @@ const taskLines = computed(() => {
             :event-name="block.eventName"
             :start-time="block.startTime"
             :end-time="block.endTime"
+            :focused="selectedBlockKey === block.key"
+            @select="openFocus(block.key, $event)"
           />
           <TaskLine
             v-for="line in taskLines.filter(
@@ -251,7 +353,10 @@ const taskLines = computed(() => {
 
 <style scoped>
 .schedule-viewport {
+  height: 70vh;
   overflow: auto;
+  overflow-anchor: none;
+  scroll-behavior: auto;
 }
 
 .schedule {

@@ -3,12 +3,12 @@ import { prisma } from '#backend/lib/prisma'
 import { getPhaseWeekCount } from '#backend/modules/phase/service'
 import type { EventScheduleModelType } from '#backend/modules/eventSchedule/model'
 
-function validateTimeRange(startTime: string, endTime: string) {
+export function validateTimeRange(startTime: string, endTime: string) {
   if (startTime >= endTime)
     throw new BadRequestException('结束时间必须晚于开始时间')
 }
 
-function validateWeeks(weeks: number[], maxWeek: number) {
+export function validateWeeks(weeks: number[], maxWeek: number) {
   if (!weeks.length)
     throw new BadRequestException('请至少选择一个存在周数')
   if (weeks.some(week => !Number.isInteger(week) || week < 1))

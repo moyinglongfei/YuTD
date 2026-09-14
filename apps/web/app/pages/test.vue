@@ -1,19 +1,31 @@
 <script setup lang="ts">
-import { unwrapApiData } from '~/utils/api'
+import EventWrite from '~/components/write/EventWrite.vue'
+import PhaseWrite from '~/components/write/PhaseWrite.vue'
+import TaskWrite from '~/components/write/TaskWrite.vue'
+import PhasePreview from '~/components/preview/PhasePreview.vue'
+import EventPreview from '~/components/preview/EventPreview.vue'
+import TaskPreview from '~/components/preview/TaskPreview.vue'
+import { requestApiData } from '~/utils/api'
+import { useRead } from '~/composables/useRead'
 
 const { $api } = useNuxtApp()
+const scheduleVersion = ref(0)
+const phaseId = ref(6)
 
-const { data: phase, error } = await useAsyncData('schedule-test-phase', async () => {
-  const result = await $api.api.phase({ id: 6 }).get()
+const { data: phase, loading, readError, refresh } = useRead(
+  () => `phase:${phaseId.value}`,
+  () => requestApiData($api.api.phase({ id: phaseId.value }).get(), '获取阶段失败')
+)
 
-  if (result.error)
-    throw new Error('获取测试阶段失败')
-  if (!result.data)
-    return null
-
-  const phases = unwrapApiData(result.data)
-  return phases
-})
+async function refreshPreviews() {
+  scheduleVersion.value++
+  await refreshNuxtData([
+    'phases',
+    `phase:${phaseId.value}`,
+    `events:${phaseId.value}`,
+    `tasks:${phaseId.value}:all`
+  ])
+}
 </script>
 
 <template>
@@ -24,26 +36,69 @@ const { data: phase, error } = await useAsyncData('schedule-test-phase', async (
           YuTD · Schedule Test
         </p>
         <h1 class="mt-1 text-2xl font-bold tracking-tight">
-          {{ phase?.name ?? '日程表测试页' }}
+          {{ phase?.id === phaseId ? phase.name : '日程表测试页' }}
         </h1>
       </div>
 
-      <p
-        v-if="error"
-        class="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700"
+      <PhasePreview
+        :selected-id="phaseId"
+        class="mb-6"
+        @select="phaseId = $event"
+      />
+      <div
+        v-if="readError"
+        class="mb-6 space-y-3"
       >
-        {{ error.message }}
+        <UAlert
+          color="error"
+          variant="soft"
+          :title="readError"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          :loading="loading"
+          :disabled="loading"
+          @click="refresh()"
+        >
+          重试
+        </UButton>
+      </div>
+      <p
+        v-else-if="loading"
+        class="mb-6 text-sm text-muted"
+        role="status"
+      >
+        正在加载阶段……
       </p>
       <ScheduleTable
-        v-else-if="phase"
+        v-if="phase && phase.id === phaseId && !readError"
+        :key="`${phase.id}-${scheduleVersion}`"
         :phase-id="phase.id"
       />
-      <p
-        v-else
-        class="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500"
+      <div
+        v-if="phase && phase.id === phaseId && !readError"
+        class="mt-6 grid items-start gap-6 lg:grid-cols-2"
       >
-        暂时没有可测试的阶段
-      </p>
+        <EventPreview :phase-id="phase.id" />
+        <TaskPreview :phase-id="phase.id" />
+      </div>
+      <div class="mt-8 grid items-start gap-6 lg:grid-cols-2">
+        <EventWrite
+          v-if="phase && phase.id === phaseId && !readError"
+          :key="phase.id"
+          :phase-id="phase.id"
+          class="lg:col-span-2"
+          @created="refreshPreviews"
+        />
+        <PhaseWrite @created="refreshPreviews" />
+        <TaskWrite
+          v-if="phase && phase.id === phaseId && !readError"
+          :key="phase.id"
+          :phase-id="phase.id"
+          @created="refreshPreviews"
+        />
+      </div>
     </section>
   </main>
 </template>

@@ -1,4 +1,6 @@
 import { t } from 'elysia'
+import type { UnwrapSchema } from 'elysia'
+import { EventScheduleModel } from '../eventSchedule/model'
 
 export const EventModel = {
   create: t.Object({
@@ -7,6 +9,7 @@ export const EventModel = {
     location: t.Optional(t.String()),
     color: t.Optional(t.String()),
     phaseId: t.Number(),
+    schedules: t.Optional(t.Array(t.Omit(EventScheduleModel.create, ['eventId']))),
   }),
   update: t.Partial(t.Object({
     name: t.String({ minLength: 1 }),
@@ -15,4 +18,8 @@ export const EventModel = {
     color: t.String(),
     phaseId: t.Number(),
   })),
+}
+
+export type EventModelType = {
+  [k in keyof typeof EventModel]: UnwrapSchema<typeof EventModel[k]>
 }

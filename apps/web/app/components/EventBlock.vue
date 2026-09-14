@@ -7,6 +7,11 @@ const props = defineProps<{
   eventName: string
   startTime: string
   endTime: string
+  focused?: boolean
+}>()
+
+const emit = defineEmits<{
+  select: [element: HTMLElement]
 }>()
 
 const blockStyle = computed(() => ({
@@ -14,13 +19,24 @@ const blockStyle = computed(() => ({
   'height': `${props.height}px`,
   '--event-color': props.color ?? '#6366f1'
 }))
+
+function handleClick(event: MouseEvent) {
+  const element = event.currentTarget
+
+  if (!(element instanceof HTMLElement))
+    return
+
+  emit('select', element)
+}
 </script>
 
 <template>
   <div
     class="event-block"
+    :class="{ 'event-block--focused': props.focused }"
     :style="blockStyle"
     :data-event-id="eventId"
+    @click.stop="handleClick"
   >
     <div
       class="event-block-corners"
@@ -56,6 +72,11 @@ const blockStyle = computed(() => ({
 
   --corner-size: 14px;
   --corner-width: 3px;
+}
+.event-block--focused {
+  z-index: 10;
+  background-color: #fff;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
 }
 /* 事件方框的装饰圆角 */
 .event-block-corners {
