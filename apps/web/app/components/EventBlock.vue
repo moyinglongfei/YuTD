@@ -7,17 +7,30 @@ const props = defineProps<{
   eventName: string
   startTime: string
   endTime: string
+  location?: string | null
+  organizer?: string | null
   focused?: boolean
+  focusProgress?: number
 }>()
 
 const emit = defineEmits<{
   select: [element: HTMLElement]
 }>()
 
+const progress = computed(() => {
+  if (props.focused) {
+    return props.focusProgress ?? 0
+  } else {
+    return 0
+  }
+})
 const blockStyle = computed(() => ({
   'top': `${props.top}px`,
   'height': `${props.height}px`,
-  '--event-color': props.color ?? '#6366f1'
+  '--event-color': props.color ?? '#6366f1',
+  '--event-background-alpha': 0.65 * progress.value + 0.35,
+  '--event-blur': `${12 * progress.value}px`,
+  '--focus-shadow-alpha': 0.15 * progress.value
 }))
 
 function handleClick(event: MouseEvent) {
@@ -54,6 +67,21 @@ function handleClick(event: MouseEvent) {
       <strong class="event-block-title">
         {{ eventName }}
       </strong>
+      <span
+        v-if="location"
+        class="event-meta event-location"
+        :title="location"
+      >
+        {{ location }}
+      </span>
+
+      <span
+        v-if="organizer"
+        class="event-meta event-organizer"
+        :title="organizer"
+      >
+        {{ organizer }}
+      </span>
       <span class="event-block-end-time">
         {{ endTime }}
       </span>
@@ -64,19 +92,20 @@ function handleClick(event: MouseEvent) {
 <style scoped>
 .event-block {
   position: absolute;
-  z-index: 2;
-  right: 4px;
-  left: 4px;
+  z-index: 4;
+  right: 0px;
+  left: 0px;
   box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
   overflow: hidden;
-
+  container-type: size;
+  container-name: event;
   --corner-size: 14px;
   --corner-width: 3px;
 }
 .event-block--focused {
-  z-index: 10;
-  background-color: #fff;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 15%);
+  z-index: 4;
 }
 /* 事件方框的装饰圆角 */
 .event-block-corners {
@@ -126,9 +155,50 @@ function handleClick(event: MouseEvent) {
 }
 /* 事件的具体内容 */
 .event-block-content {
-  display: grid;
-
-  grid-template-rows: auto minmax(20px, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  box-sizing: border-box;
+}
+.event-block-start-time,
+.event-block-end-time {
+  left: 0;
+  right: 0;
+  padding: 1px 0px;
+  transform: translateX(3px);
+  font-size: clamp(8px, 7cqi, 15px);
+  color: var(--event-color);
+}
+.event-block-end-time {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+.event-block-title {
+  min-width: 0;
+  font-size: clamp(12px, min(10cqi, 30cqb), 20px);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.event-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: none;
+}
+.event-location {
+    font-size: clamp(9px, min(16cqi, 16cqb), 15px);
+}
+.event-organizer {
+    font-size: clamp(9px, min(9cqi, 10cqb), 15px);
+}
+@container event (min-width: 40px) and (min-height: 40px) {
+  .event-location {
+    display: block;
+  }
+}
+
+@container event (min-width: 60px) and (min-height: 90px) {
+  .event-organizer {
+    display: block;
+  }
 }
 </style>

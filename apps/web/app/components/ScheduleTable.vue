@@ -70,7 +70,7 @@ const miniStartMinutes = startMinutes.length ? Math.min(...startMinutes) : 8 * 6
 const maxEndMinutes = endMinutes.length ? Math.max(...endMinutes) : 22 * 60
 const scheduleStartMinutes = Math.floor(miniStartMinutes / 60) * 60
 const scheduleEndMinutes = Math.ceil(maxEndMinutes / 60) * 60
-const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const weekdays = ['一', '二', '三', '四', '五', '六', '日']
 const maxWeek = phase.weekCount
 const hourMarks = Array.from(
   {
@@ -81,62 +81,93 @@ const hourMarks = Array.from(
 )
 
 // 焦点缩放
+const maxFocusScale = 2 // 垂直放大倍数
+const focusColumnScale = 3 // 水平放大倍数
 const focus = reactive({
-  progress: 0
+  progress: 0,
+  offsetY: 0
+})
+const columnWidths = reactive(
+  weekdays.map(() => ({ weight: 1 }))
+)
+const gridColumns = computed(() => {
+  const columns = columnWidths.map((column) => {
+    return `minmax(0, ${column.weight}fr)`
+  })
+
+  return `var(--time-axis-width) ${columns.join(' ')}`
 })
 const displayHourPixels = computed(() => {
-  return hourPixels.value * (1 + 2 * focus.progress)
+  return hourPixels.value * (1 + maxFocusScale * focus.progress)
 })
 const selectedBlockKey = ref<string | null>(null)
-const viewport = ref<HTMLDivElement | null>(null)
+
 let focusTween: ReturnType<typeof gsap.to> | undefined
-let focusElement: HTMLElement | null = null
-let anchorY = 0
-function rememberCenter(element: HTMLElement) {
-  const container = viewport.value
+let columnTween: ReturnType<typeof gsap.to> | undefined
 
-  if (!container)
+function animateColumns(weekday: number | null) {
+  columnTween?.kill()
+
+  const otherWeight = (weekdays.length - focusColumnScale)
+    / (weekdays.length - 1)
+
+  columnTween = gsap.to(columnWidths, {
+    weight: (index: number) => {
+      if (weekday === null)
+        return 1
+
+      return index + 1 === weekday
+        ? focusColumnScale
+        : otherWeight
+    },
+    duration: 0.35,
+    ease: 'power2.inOut'
+  })
+}
+
+function openFocus(key: string) {
+  const block = eventBlocks.value.find(block => block.key === key)
+
+  if (!block)
     return
 
-  focusElement = element
-
-  const cardRect = element.getBoundingClientRect()
-  const containerRect = container.getBoundingClientRect()
-
-  anchorY = cardRect.top
-    + cardRect.height / 2
-    - containerRect.top
-}
-function keepCenter() {
-  const container = viewport.value
-  const element = focusElement
-
-  if (!container || !element || !element.isConnected)
-    return
-
-  const cardRect = element.getBoundingClientRect()
-  const containerRect = container.getBoundingClientRect()
-
-  const currentY = cardRect.top
-    + cardRect.height / 2
-    - containerRect.top
-
-  container.scrollTop += currentY - anchorY
-}
-watch(
-  () => focus.progress,
-  keepCenter,
-  { flush: 'post' }
-)// 监视焦点缩放进度，保持选中元素居中
-
-function openFocus(key: string, element: HTMLElement) {
   focusTween?.kill()
 
-  rememberCenter(element)
+  const start = timeToMinutes(block.startTime)
+  const end = timeToMinutes(block.endTime)
+  const centerMinutes = (start + end) / 2
+
+  const currentCenterY = minutesToY(centerMinutes)
+
+  const targetHourPixels = hourPixels.value * (1 + maxFocusScale)
+  const targetHeight = (end - start) * (targetHourPixels / 60)
+
+  const targetCenterY = (centerMinutes - scheduleStartMinutes)
+    * (targetHourPixels / 60)
+    + edgePixels.value
+
+  // 先算出保持原中心所需的偏移。
+  let targetOffsetY = currentCenterY - targetCenterY
+
+  const desiredTop = currentCenterY - targetHeight / 2
+  const desiredBottom = currentCenterY + targetHeight / 2
+
+  const minTop = edgePixels.value
+  const maxBottom = boardHeight.value - edgePixels.value
+
+  // 越过上边界就往下挪，越过下边界就往上挪。
+  if (desiredTop < minTop) {
+    targetOffsetY += minTop - desiredTop
+  } else if (desiredBottom > maxBottom) {
+    targetOffsetY -= desiredBottom - maxBottom
+  }
+
   selectedBlockKey.value = key
+  animateColumns(block.weekday)
 
   focusTween = gsap.to(focus, {
     progress: 1,
+    offsetY: targetOffsetY,
     duration: 0.35,
     ease: 'power2.inOut'
   })
@@ -147,12 +178,11 @@ function closeFocus() {
     return
 
   focusTween?.kill()
-
-  if (focusElement)
-    rememberCenter(focusElement)
+  animateColumns(null)
 
   focusTween = gsap.to(focus, {
     progress: 0,
+    offsetY: 0,
     duration: 0.35,
     ease: 'power2.inOut',
     onComplete() {
@@ -163,6 +193,7 @@ function closeFocus() {
 
 onBeforeUnmount(() => {
   focusTween?.kill()
+  columnTween?.kill()
 })
 
 // 呈现事件，任务组件
@@ -170,12 +201,17 @@ function minutesToY(minutes: number) {
   return (minutes - scheduleStartMinutes)
     * (displayHourPixels.value / 60)
     + edgePixels.value
+    + focus.offsetY
 }
 const week = ref(1)
 const hourPixels = ref(72)
 const edgePixels = ref(10)
-const boardHeight = computed(() => minutesToY(scheduleEndMinutes) + edgePixels.value)
+const boardHeight = computed(() => {
+  const duration = scheduleEndMinutes - scheduleStartMinutes
 
+  return duration * (hourPixels.value / 60)
+    + edgePixels.value * 2
+})
 const eventBlocks = computed(() =>
   events.flatMap(event =>
     event.schedules.flatMap((schedule) => {
@@ -197,7 +233,9 @@ const eventBlocks = computed(() =>
         eventId: event.id,
         eventName: event.name,
         startTime: schedule.startTime,
-        endTime: schedule.endTime
+        endTime: schedule.endTime,
+        location: schedule.location || event.location,
+        organizer: event.organizer ?? null
       }
     })
   )
@@ -214,46 +252,41 @@ function isDateInWeek(date: Date, week: number) {
 
   return d >= weekStart && d < weekEnd
 }
-const taskLines = computed(() => {
-  const lines: Array<{
-    key: string
-    taskId: number
-    weekday: number
-    taskName?: string
-    kind: 'plan' | 'due'
-    top: number
-  }> = []
+const taskLines = computed(() =>
+  tasks.flatMap((task) => {
+    const currentWeek = Number(week.value)
 
-  for (const task of tasks) {
-    if (task.plannedDate && isDateInWeek(task.plannedDate, week.value)) {
-      lines.push({
-        key: `${task.id}-plan`,
-        taskId: task.id,
-        weekday: dateToWeekday(task.plannedDate),
-        kind: 'plan',
-        taskName: task.title,
-        top: minutesToY(
-          dateToMinutes(task.plannedDate)
-        )
-      })
-    }
+    const plannedLines
+      = task.plannedDate && isDateInWeek(task.plannedDate, currentWeek)
+        ? [{
+            key: `${task.id}-plan`,
+            taskId: task.id,
+            weekday: dateToWeekday(task.plannedDate),
+            taskName: task.title,
+            kind: 'plan' as const,
+            plannedDate: task.plannedDate,
+            dueDate: undefined,
+            top: minutesToY(dateToMinutes(task.plannedDate))
+          }]
+        : []
 
-    if (task.dueDate && isDateInWeek(task.dueDate, week.value)) {
-      lines.push({
-        key: `${task.id}-due`,
-        taskId: task.id,
-        weekday: dateToWeekday(task.dueDate),
-        taskName: task.title,
-        kind: 'due',
-        top: minutesToY(
-          dateToMinutes(task.dueDate)
-        )
-      })
-    }
-  }
+    const dueLines
+      = task.dueDate && isDateInWeek(task.dueDate, currentWeek)
+        ? [{
+            key: `${task.id}-due`,
+            taskId: task.id,
+            weekday: dateToWeekday(task.dueDate),
+            taskName: task.title,
+            kind: 'due' as const,
+            plannedDate: undefined,
+            dueDate: task.dueDate,
+            top: minutesToY(dateToMinutes(task.dueDate))
+          }]
+        : []
 
-  return lines
-})
+    return [...plannedLines, ...dueLines]
+  })
+)
 </script>
 
 <template>
@@ -276,11 +309,13 @@ const taskLines = computed(() => {
   />
   <p>{{ hourPixels }}</p>
   <div
-    ref="viewport"
     class="schedule-viewport"
     @click="closeFocus"
   >
-    <section class="schedule">
+    <section
+      class="schedule"
+      :style="{ '--schedule-columns': gridColumns }"
+    >
       <div class="schedule-header">
         <div class="schedule-header-time">
           时间
@@ -306,7 +341,12 @@ const taskLines = computed(() => {
             class="schedule-hour-label"
             :style="{ top: `${minutesToY(minute)}px` }"
           >
-            {{ minutesToTime(minute) }}
+            <span class="hour-full">
+              {{ minutesToTime(minute) }}
+            </span>
+            <span class="hour-short">
+              {{ minutesToTime(minute).split(':')[0] }}
+            </span>
           </span>
         </div>
         <div
@@ -326,8 +366,11 @@ const taskLines = computed(() => {
             :event-name="block.eventName"
             :start-time="block.startTime"
             :end-time="block.endTime"
+            :location="block.location"
+            :organizer="block.organizer"
             :focused="selectedBlockKey === block.key"
-            @select="openFocus(block.key, $event)"
+            :focus-progress="focus.progress"
+            @select="openFocus(block.key)"
           />
           <TaskLine
             v-for="line in taskLines.filter(
@@ -338,6 +381,8 @@ const taskLines = computed(() => {
             :kind="line.kind"
             :task-id="line.taskId"
             :task-name="line.taskName"
+            :planned-date="line.plannedDate"
+            :due-date="line.dueDate"
           />
         </div>
         <div
@@ -353,25 +398,77 @@ const taskLines = computed(() => {
 
 <style scoped>
 .schedule-viewport {
-  height: 70vh;
-  overflow: auto;
-  overflow-anchor: none;
-  scroll-behavior: auto;
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: schedule;
+  overflow: visible;
 }
 
 .schedule {
-  min-width: 904px;
+  --time-axis-width: 64px;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid #2a56af;
+  background-image:
+  linear-gradient(
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.15)
+  ),
+  url('/images/bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-.schedule-header,
+.hour-short {
+  display: none;
+}
+@container schedule (max-width: 400px) {
+  .hour-full {
+    display: none;
+  }
+
+  .hour-short {
+    display: inline;
+    font-size: 13px;
+  }
+  .schedule-header-time {
+    font-size: 10px;
+  }
+  .schedule-time-axis {
+    text-align: center;
+  }
+
+  .schedule {
+    --time-axis-width: 16px;
+  }
+}
+
+.schedule-header {
+  display: grid;
+  grid-template-columns: var(--schedule-columns);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  background-color: #fff;
+  border-bottom: 1px solid #2a56af;
+}
 .schedule-body {
   display: grid;
-  grid-template-columns: 64px repeat(7, minmax(120px, 1fr));
+  grid-template-columns: var(--schedule-columns);
+  position: relative;
+  overflow: clip;
 }
 
 .schedule-header {
   border-bottom: 1px solid #2a56af;
+}
+.schedule-header-time {
+  text-align: center;
 }
 
 .schedule-body {
@@ -380,8 +477,10 @@ const taskLines = computed(() => {
 
 .schedule-header-weekday {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   border-left: 1px solid #2a56af;
 }
 
@@ -391,19 +490,24 @@ const taskLines = computed(() => {
 }
 .schedule-day-column {
   position: relative;
+  min-width: 0;
   border-left: 1px solid #2a56af;
+  container-type: inline-size;
+  container-name: schedule-day;
 }
 
 .schedule-hour-label {
   position: absolute;
-  right: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
   transform: translateY(-50%);
 }
 
 .schedule-hour-line {
   position: absolute;
   right: 0;
-  left: 64px;
+  left: var(--time-axis-width);
   border-top: 1px solid #dbe4f4;
   pointer-events: none;
 }
