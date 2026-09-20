@@ -6,8 +6,7 @@
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate",
-    "qa": "prisma db seed"
+    "prisma:generate": "prisma generate"
   },
   "exports": {
     ".": "./src/index.ts"

@@ -24,6 +24,7 @@ const [events, tasks, phase] = await Promise.all([
     '获取阶段失败'
   )
 ])
+const { now } = useSystemTime()
 
 // 计算日程表的开始时间和结束时间
 function timeToMinutes(time: string) {
@@ -203,6 +204,15 @@ function minutesToY(minutes: number) {
     + edgePixels.value
     + focus.offsetY
 }
+function getWeekdayDate(weekNumber: number, weekday: number) {
+  const date = new Date(phase.startDate)
+
+  date.setUTCDate(
+    date.getUTCDate() + (weekNumber - 1) * 7 + (weekday - 1)
+  )
+
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`
+}
 const week = ref(1)
 const hourPixels = ref(72)
 const edgePixels = ref(10)
@@ -287,9 +297,62 @@ const taskLines = computed(() =>
     return [...plannedLines, ...dueLines]
   })
 )
+
+// 实时日期定位
+function getSchedulePosition(date: Date) {
+  const phaseStart = new Date(phase.startDate)
+
+  const startDay = Date.UTC(
+    phaseStart.getUTCFullYear(),
+    phaseStart.getUTCMonth(),
+    phaseStart.getUTCDate()
+  )
+
+  const targetDay = Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  )
+
+  const days = (targetDay - startDay) / 86_400_000
+  const weekNumber = Math.floor(days / 7) + 1
+
+  return {
+    week: weekNumber,
+    weekday: dateToWeekday(date),
+    minutes: dateToMinutes(date),
+    inPhase: weekNumber >= 1 && weekNumber <= maxWeek
+  }
+}
+const currentPosition = computed(() => {
+  return now.value
+    ? getSchedulePosition(now.value)
+    : null
+})
+let initialWeekSelected = false
+
+watch(
+  () => currentPosition.value?.week,
+  (currentWeek) => {
+    if (currentWeek === undefined || initialWeekSelected) return
+
+    week.value = Math.min(maxWeek, Math.max(1, currentWeek))
+    initialWeekSelected = true
+  },
+  { immediate: true }
+)
+const todayWeekday = computed(() => {
+  const position = currentPosition.value
+
+  if (!position?.inPhase) return null
+  if (position.week !== Number(week.value)) return null
+
+  return position.weekday
+})
 </script>
 
 <template>
+  <p>{{ now }}</p>
   <USlider
     v-model="week"
     :min="1"
@@ -318,15 +381,21 @@ const taskLines = computed(() =>
     >
       <div class="schedule-header">
         <div class="schedule-header-time">
-          时间
+          {{ week }}
         </div>
 
         <div
-          v-for="weekday in weekdays"
+          v-for="(weekday, index) in weekdays"
           :key="weekday"
           class="schedule-header-weekday"
+          :class="{
+            'schedule-header-weekday--today': index + 1 === todayWeekday
+          }"
         >
           {{ weekday }}
+          <span class="schedule-header-date">
+            {{ getWeekdayDate(week, index + 1) }}
+          </span>
         </div>
       </div>
 
@@ -468,7 +537,8 @@ const taskLines = computed(() =>
   border-bottom: 1px solid #2a56af;
 }
 .schedule-header-time {
-  text-align: center;
+  display: grid;
+  place-items: center;
 }
 
 .schedule-body {
@@ -476,12 +546,28 @@ const taskLines = computed(() =>
 }
 
 .schedule-header-weekday {
-  display: flex;
   min-width: 0;
   align-items: center;
   justify-content: center;
   white-space: nowrap;
   border-left: 1px solid #2a56af;
+  position: relative;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 4px 4px 17px;
+}
+.schedule-header-weekday--today {
+  color: #dc2626;
+  background-color: #fef2f2;
+  font-weight: 700;
+}
+.schedule-header-date {
+  position: absolute;
+  left: 4px;
+  bottom: 3px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 400;
 }
 
 .schedule-time-axis {

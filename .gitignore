@@ -55,4 +55,5 @@ public/assets/fonts/
 /apps/server/dev.db
 /apps/server/dev.db-*
 /apps/server/prisma/seed.ts
+/apps/server/tests
 *.db-journal

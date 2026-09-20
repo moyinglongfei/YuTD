@@ -11,6 +11,7 @@ import { eventScheduleRoutes } from '#backend/modules/eventSchedule'
 import { phaseRoutes } from '#backend/modules/phase'
 import { styleRoutes } from '#backend/modules/style'
 import { taskRoutes } from '#backend/modules/task/index'
+import { tipRoutes } from '#backend/modules/tip'
 import { httpPlugin } from './lib/http'
 
 try {
@@ -34,7 +35,8 @@ const app = new Elysia()
     .use(eventScheduleRoutes)
     .use(configRoutes)
     .use(styleRoutes)
-    .use(taskRoutes))
+    .use(taskRoutes)
+    .use(tipRoutes))
   .get('/', () => ({ message: 'YuTD 后端运行正常喵！' }))
 
 app.listen({ port: config.system.port, hostname: config.system.host }, () => {

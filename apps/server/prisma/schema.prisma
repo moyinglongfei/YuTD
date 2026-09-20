@@ -25,11 +25,12 @@ model Task {
   dueDate     DateTime? //截止日期
   plannedDate DateTime? //计划日期(预计扩充成多日期)
 
-  estimatedTime Int?  //预计花费时间
-  actualTime    Int?  //实际花费时间
+  estimatedTime Int? //预计花费时间
+  actualTime    Int? //实际花费时间
 
   reminders TaskReminder[]
   tags      TaskTag[]
+  tips      Tip[]
 
   phaseId Int
   phase   Phase @relation(fields: [phaseId], references: [id], onDelete: Restrict)
@@ -77,6 +78,7 @@ model Phase {
   updatedAt DateTime @updatedAt
   events    Event[]
   tasks     Task[]
+  tips      Tip[]
 }
 
 // 事件
@@ -92,6 +94,29 @@ model Event {
   updatedAt DateTime        @updatedAt
   schedules EventSchedule[]
   tasks     Task[]
+  tips      Tip[]
+}
+
+// 提示
+model Tip {
+  id        Int       @id @default(autoincrement())
+  content   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) // 仅在内容变化时由服务更新
+  dates     TipDate[]
+  events    Event[]
+  phases    Phase[]
+  tasks     Task[]
+}
+
+model TipDate {
+  id    Int    @id @default(autoincrement())
+  date  String // YYYY-MM-DD，不进行时区转换
+  tipId Int
+  tip   Tip    @relation(fields: [tipId], references: [id], onDelete: Cascade)
+
+  @@unique([tipId, date])
+  @@index([date])
 }
 
 // 事件日程

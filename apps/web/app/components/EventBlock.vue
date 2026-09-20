@@ -61,6 +61,14 @@ function handleClick(event: MouseEvent) {
       <span class="event-corner event-corner-br" />
     </div>
     <div class="event-block-content">
+      <div class="event-block-simple">
+        <span class="event-block-simple-time">
+          {{ startTime }} - {{ endTime }}
+        </span>
+        <div class="event-block-simple-title">
+          {{ eventName }}
+        </div>
+      </div>
       <span class="event-block-start-time">
         {{ startTime }}
       </span>
@@ -97,7 +105,7 @@ function handleClick(event: MouseEvent) {
   left: 0px;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(20px);
   overflow: hidden;
   container-type: size;
   container-name: event;
@@ -160,13 +168,15 @@ function handleClick(event: MouseEvent) {
   height: 100%;
   box-sizing: border-box;
 }
+.event-block-simple-time,
+.event-block-simple-title,
 .event-block-start-time,
 .event-block-end-time {
   left: 0;
   right: 0;
   padding: 1px 0px;
   transform: translateX(3px);
-  font-size: clamp(8px, 7cqi, 15px);
+  font-size: clamp(8px, 7cqi, 13px);
   color: var(--event-color);
 }
 .event-block-end-time {
@@ -175,14 +185,28 @@ function handleClick(event: MouseEvent) {
 }
 .event-block-title {
   min-width: 0;
-  font-size: clamp(12px, min(10cqi, 30cqb), 20px);
+  font-size: clamp(12px, min(10cqi, 40cqb), 20px);
   overflow: hidden;
   overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 .event-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   display: none;
+}
+.event-block-simple {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.event-block-simple-time {
+  display: none;
+  flex-shrink: 0;
+}
+.event-block-simple-title {
+  display: none;
+  flex: 1;
 }
 .event-location {
     font-size: clamp(9px, min(16cqi, 16cqb), 15px);
@@ -190,7 +214,7 @@ function handleClick(event: MouseEvent) {
 .event-organizer {
     font-size: clamp(9px, min(9cqi, 10cqb), 15px);
 }
-@container event (min-width: 40px) and (min-height: 40px) {
+@container event (min-width: 40px) and (min-height: 80px) {
   .event-location {
     display: block;
   }
@@ -199,6 +223,27 @@ function handleClick(event: MouseEvent) {
 @container event (min-width: 60px) and (min-height: 90px) {
   .event-organizer {
     display: block;
+  }
+}
+@container event (max-height: 60px) {
+  .event-block-simple-time {
+    display: flex;
+  }
+  .event-block-start-time,
+  .event-block-end-time {
+    display: none;
+  }
+}
+@container event (max-height: 40px) {
+  .event-block-title {
+    display: none;
+  }
+  .event-block-content {
+    justify-content: center;
+    align-items: center;
+  }
+  .event-block-simple-title {
+    display: flex;
   }
 }
 </style>
