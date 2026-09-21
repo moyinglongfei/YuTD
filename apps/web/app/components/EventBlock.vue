@@ -13,6 +13,7 @@ const props = defineProps<{
   focusProgress?: number
 }>()
 
+// 向父组件传递点击事件
 const emit = defineEmits<{
   select: [element: HTMLElement]
 }>()
@@ -106,7 +107,6 @@ function handleClick(event: MouseEvent) {
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
-  overflow: hidden;
   container-type: size;
   container-name: event;
   --corner-size: 14px;
@@ -168,8 +168,6 @@ function handleClick(event: MouseEvent) {
   height: 100%;
   box-sizing: border-box;
 }
-.event-block-simple-time,
-.event-block-simple-title,
 .event-block-start-time,
 .event-block-end-time {
   left: 0;
@@ -177,6 +175,13 @@ function handleClick(event: MouseEvent) {
   padding: 1px 0px;
   transform: translateX(3px);
   font-size: clamp(8px, 7cqi, 13px);
+  color: var(--event-color);
+}
+.event-block-simple-time,
+.event-block-simple-title{
+  left: 0;
+  right: 0;
+  font-size: clamp(7px, 7cqi, 13px);
   color: var(--event-color);
 }
 .event-block-end-time {
@@ -199,6 +204,8 @@ function handleClick(event: MouseEvent) {
   display: flex;
   align-items: center;
   gap: 3px;
+  max-width: 100%;
+  min-width: 0;
 }
 .event-block-simple-time {
   display: none;
@@ -207,6 +214,10 @@ function handleClick(event: MouseEvent) {
 .event-block-simple-title {
   display: none;
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .event-location {
     font-size: clamp(9px, min(16cqi, 16cqb), 15px);
@@ -226,8 +237,13 @@ function handleClick(event: MouseEvent) {
   }
 }
 @container event (max-height: 60px) {
+  .event-block-simple {
+    padding: 1px 4px;
+  }
   .event-block-simple-time {
     display: flex;
+    width: 100%;
+    justify-content: center;
   }
   .event-block-start-time,
   .event-block-end-time {
@@ -235,6 +251,9 @@ function handleClick(event: MouseEvent) {
   }
 }
 @container event (max-height: 40px) {
+  .event-block-simple-time {
+    width: auto;
+  }
   .event-block-title {
     display: none;
   }
@@ -244,6 +263,23 @@ function handleClick(event: MouseEvent) {
   }
   .event-block-simple-title {
     display: flex;
+  }
+}
+@container event (max-width: 50px) {
+  .event-block-simple-title {
+    display: none;
+  }
+  .event-block-simple-time {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@container event (max-height: 18px) {
+  .event-block-content {
+    background-color: var(--event-color);
+  }
+  .event-block-simple {
+    transform: translateY(-14px);
   }
 }
 </style>

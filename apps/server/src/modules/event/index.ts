@@ -8,6 +8,7 @@ export const eventRoutes = new Elysia({ prefix: '/api/event' })
   .get('/', ({ query }) => EventService.getAll(query.phaseId), {
     query: t.Object({ phaseId: t.Optional(t.Numeric()) }),
   })
+  .get('/:id', ({ params }) => EventService.getById(params.id), { params: idParams })
   .post('/', ({ body }) => EventService.create(body), { body: EventModel.create })
   .patch('/:id', ({ params, body }) => EventService.update(params.id, body), {
     params: idParams,

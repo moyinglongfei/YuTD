@@ -19,11 +19,28 @@ export abstract class EventService {
       include: {
         phase: true,
         schedules: true,
+        tips: true,
         _count: { select: { tasks: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
   }
+
+  static async getById(id: number) {
+    const event = await prisma.event.findUnique({
+      where: { id },
+      include: {
+        phase: true,
+        schedules: true,
+        tips: true,
+        _count: { select: { tasks: true } },
+      },
+    })
+    if (!event)
+      throw new NotFoundException('事件不存在')
+    return event
+  }
+
 
   static async create(data: EventModelType['create']) {
     if (data.phaseId === null || data.phaseId === undefined)
@@ -55,7 +72,7 @@ export abstract class EventService {
       throw new NotFoundException('事件不存在')
     if (typeof data.phaseId === 'number')
       await ensurePhase(data.phaseId)
-    return prisma.event.update({ where: { id }, data, include: { phase: true, schedules: true } })
+    return prisma.event.update({ where: { id }, data, include: { phase: true, schedules: true , tips: true } })
   }
 
   static async delete(id: number) {
