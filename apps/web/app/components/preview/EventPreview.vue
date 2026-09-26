@@ -16,8 +16,6 @@ const { data: events, loading, readError, refresh } = useRead(
   )
 )
 
-const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-
 function formatWeeks(weeks: unknown) {
   if (!Array.isArray(weeks))
     return '未设置'

@@ -9,7 +9,10 @@ export default defineNuxtConfig({
   devtools: {
     enabled: true
   },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/schedule.css'],
+  ui: {
+    colorMode: false
+  },
   runtimeConfig: {
     public: {
       apiBase: 'http://localhost:3000'

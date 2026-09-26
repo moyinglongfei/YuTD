@@ -7,8 +7,7 @@ const props = defineProps<{
 
 const form = defineModel<ScheduleForm>({ required: true })
 
-const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-  .map((label, index) => ({ label, value: index + 1 }))
+const weekday = weekdays.map((label, index) => ({ label, value: index + 1 }))
 </script>
 
 <template>
@@ -22,7 +21,7 @@ const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '�
     >
       <USelect
         v-model="form.weekday"
-        :items="weekdays"
+        :items="weekday"
         :disabled="props.disabled"
         class="w-full"
       />

@@ -74,7 +74,9 @@ function handleClick(event: MouseEvent) {
         {{ startTime }}
       </span>
       <strong class="event-block-title">
-        {{ eventName }}
+        <slot name="title">
+          {{ eventName }}
+        </slot>
       </strong>
       <span
         v-if="location"
@@ -167,21 +169,22 @@ function handleClick(event: MouseEvent) {
   flex-direction: column;
   height: 100%;
   box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
 }
 .event-block-start-time,
 .event-block-end-time {
   left: 0;
   right: 0;
   padding: 1px 0px;
-  transform: translateX(3px);
-  font-size: clamp(8px, 7cqi, 13px);
+  font-size: clamp(8px, 13cqi, 11px);
   color: var(--event-color);
 }
 .event-block-simple-time,
 .event-block-simple-title{
   left: 0;
   right: 0;
-  font-size: clamp(7px, 7cqi, 13px);
+  font-size: clamp(6px, 7cqi, 13px);
   color: var(--event-color);
 }
 .event-block-end-time {
@@ -190,7 +193,7 @@ function handleClick(event: MouseEvent) {
 }
 .event-block-title {
   min-width: 0;
-  font-size: clamp(12px, min(10cqi, 40cqb), 20px);
+  font-size: clamp(10px, min(10cqi, 40cqb), 20px);
   overflow: hidden;
   overflow-wrap: anywhere;
   line-height: 1.2;
@@ -256,10 +259,6 @@ function handleClick(event: MouseEvent) {
   }
   .event-block-title {
     display: none;
-  }
-  .event-block-content {
-    justify-content: center;
-    align-items: center;
   }
   .event-block-simple-title {
     display: flex;

@@ -43,3 +43,39 @@ export function getScheduleData(form: ScheduleForm) {
     location: form.location.trim() || undefined
   }
 }
+
+export function parseWeeks(weeks: unknown) {
+  const list = Array.isArray(weeks)
+    ? weeks.filter(
+        (week): week is number =>
+          typeof week === 'number' && Number.isInteger(week) && week > 0
+      )
+    : []
+
+  return [...new Set(list)].sort((a, b) => a - b)
+}
+
+export function formatWeeksRange(weeks: unknown) {
+  const sorted = parseWeeks(weeks)
+
+  if (!sorted.length)
+    return '未设置'
+
+  const [first = 0, ...rest] = sorted
+  const labels: string[] = []
+  let start = first
+  let end = first
+  labels.push(`第`)
+  for (const week of rest) {
+    if (week === end + 1) {
+      end = week
+      continue
+    }
+    labels.push(start === end ? `${start}` : `${start}-${end} 周`)
+    start = end = week
+  }
+
+  labels.push(start === end ? `${start} 周` : `${start}-${end} 周`)
+
+  return labels.join(' ')
+}
