@@ -50,7 +50,27 @@ useSeoMeta({
 </script>
 
 <template>
-  <UApp>
-    <NuxtPage />
-  </UApp>
+  <div class="app-layout">
+    <AppSidebar />
+    <div class="app-main">
+      <NuxtPage />
+    </div>
+  </div>
 </template>
+
+<style scoped>
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-sidebar {
+  flex: 0 0 var(--app-sidebar-width);
+  width: var(--app-sidebar-width);
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+}
+</style>

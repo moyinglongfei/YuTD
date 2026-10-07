@@ -9,7 +9,24 @@ export default defineNuxtConfig({
   devtools: {
     enabled: true
   },
-  css: ['~/assets/css/main.css', '~/assets/css/schedule.css'],
+  app: {
+    head: {
+      link: [
+        {
+          rel: 'icon',
+          href: '/logo.svg',
+          type: 'image/svg+xml'
+        }
+      ]
+    }
+  },
+  css: [
+    '~/assets/css/main.css',
+    '~/assets/css/schedule.css',
+    '~/assets/css/pages/schedule.css',
+    '~/assets/css/pages/edit.css',
+    '~/assets/css/pages/setting.css'
+  ],
   ui: {
     colorMode: false
   },
