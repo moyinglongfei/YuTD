@@ -9,6 +9,7 @@ import { ConfigService } from '#backend/modules/config/service'
 import { eventRoutes } from '#backend/modules/event'
 import { eventScheduleRoutes } from '#backend/modules/eventSchedule'
 import { phaseRoutes } from '#backend/modules/phase'
+import { preferencesRoutes } from '#backend/modules/preferences'
 import { styleRoutes } from '#backend/modules/style'
 import { taskRoutes } from '#backend/modules/task/index'
 import { tipRoutes } from '#backend/modules/tip'
@@ -31,6 +32,7 @@ const app = new Elysia()
   .guard({}, app => app
     .derive(authGuard)
     .use(phaseRoutes)
+    .use(preferencesRoutes)
     .use(eventRoutes)
     .use(eventScheduleRoutes)
     .use(configRoutes)

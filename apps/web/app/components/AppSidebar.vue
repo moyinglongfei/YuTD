@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { requestApiData } from '~/utils/api'
-import { useRead } from '~/composables/useRead'
 
 interface PhaseOption {
   label: string
@@ -9,29 +8,28 @@ interface PhaseOption {
 
 const { $api } = useNuxtApp()
 const route = useRoute()
-const logoSrc = '/logo.svg'
+const { now } = useSystemTime()
 
 const selectedPhaseId = useState<number | null>('selectedPhaseId', () => null)
-const { data: phases, readError, refresh } = useRead('phases', async () => {
-  if (import.meta.server)
-    return []
-
-  return requestApiData($api.api.phase.get(), '获取 Phase 列表失败')
-})
-const phaseOptions = computed<PhaseOption[]>(() =>
-  phases.value?.map(phase => ({
-    label: phase.name,
-    value: phase.id
-  })) ?? []
+const phases = await requestApiData(
+  $api.api.phase.get(),
+  '获取阶段列表失败'
 )
-const phaseLoadError = computed(() => readError.value)
+
+const phaseOptions: PhaseOption[] = phases.map(phase => ({
+  label: phase.name,
+  value: phase.id
+}))
 
 const phaseSelectValue = computed({
-  get() {
-    return selectedPhaseId.value === null ? '' : String(selectedPhaseId.value)
-  },
-  set(value: string) {
-    selectedPhaseId.value = value === '' ? null : Number(value)
+  get: () => selectedPhaseId.value === null
+    ? ''
+    : String(selectedPhaseId.value),
+
+  set: (value: string) => {
+    selectedPhaseId.value = value === ''
+      ? null
+      : Number(value)
   }
 })
 
@@ -67,19 +65,6 @@ const navigationItems = [
 function isNavigationActive(path: string) {
   return route.path === path || route.path.startsWith(`${path}/`)
 }
-
-watch(phaseOptions, (options) => {
-  if (options.length === 0)
-    return
-
-  if (selectedPhaseId.value === null || !options.some(option => option.value === selectedPhaseId.value)) {
-    selectedPhaseId.value = options[0]?.value ?? null
-  }
-}, { immediate: true })
-
-onMounted(() => {
-  void refresh()
-})
 </script>
 
 <template>
@@ -89,7 +74,7 @@ onMounted(() => {
       <NuxtLink to="/">
         <img
           class="app-sidebar-logo-image"
-          :src="logoSrc"
+          src="/logo.svg"
           alt="YuTD 首页"
         >
       </NuxtLink>
@@ -147,14 +132,7 @@ onMounted(() => {
         </span>
       </NuxtLink>
     </div>
-
-    <!-- 错误信息 -->
-    <div
-      v-if="phaseLoadError"
-      class="app-sidebar-error"
-    >
-      {{ phaseLoadError }}
-    </div>
+    <p>{{ now }}</p>
   </div>
 </template>
 

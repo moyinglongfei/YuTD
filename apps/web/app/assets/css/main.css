@@ -1,5 +1,6 @@
 /* Global customizable design tokens */
 :root {
+  --app-font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   --app-sidebar-width: 64px;
   --app-sidebar-background: #ffffff;
   --app-sidebar-border: #dbe4f4;
@@ -44,5 +45,5 @@ body {
   margin: 0;
   background-color: var(--page-background);
   color: var(--page-foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font-family);
 }

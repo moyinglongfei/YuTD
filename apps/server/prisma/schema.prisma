@@ -70,23 +70,24 @@ enum TaskStatus {
 
 // 阶段
 model Phase {
-  id        Int      @id @default(autoincrement())
-  name      String
-  startDate DateTime
-  endDate   DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  events    Event[]
-  tasks     Task[]
-  tips      Tip[]
+  id          Int      @id @default(autoincrement())
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  events      Event[]
+  tasks       Task[]
+  tips        Tip[]
+  preferences Preferences[]
 }
 
 // 事件
 model Event {
   id        Int             @id @default(autoincrement())
   name      String
-  organizer String?
-  location  String?
+  organizer String?         //默认事件组织者
+  location  String?         //默认事件地点
   color     String?
   phaseId   Int
   phase     Phase           @relation(fields: [phaseId], references: [id], onDelete: Restrict)
@@ -128,23 +129,25 @@ model EventSchedule {
   startTime String
   endTime   String
   weeks     Json
-  location  String?
+  organizer String?         //此次事件日程组织者，留空使用默认
+  location  String?         //此次事件日程地点，留空使用默认
 }
 
+// 界面风格
 model Style {
   id                      Int      @id @default(autoincrement())
+  name                    String   @default("我的样式")
   defaultLocale           String   @default("zh-CN")
-  scheduleBackground      String   @default("#f4efe7")
-  schedulePanelBackground String   @default("rgba(255,255,255,0.82)")
-  scheduleGridLineColor   String   @default("rgba(226,232,240,0.9)")
-  scheduleSlotHeight      Int      @default(72)
-  scheduleSlotGap         Int      @default(8)
-  presetName              String   @default("campus")
-  coursePalette           String   @default("[\"#0f766e\",\"#1d4ed8\",\"#be123c\",\"#7c3aed\"]")
-  schedulePageClass       String   @default("")
-  scheduleBoardClass      String   @default("")
-  scheduleCardClass       String   @default("")
-  customCss               String   @default("")
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  preferences             Preferences[]
+}
+
+// 偏好设置
+model Preferences{
+  id                      Int      @id @default(autoincrement())
+  defaultPhaseId          Int?      //用户进入界面的默认阶段ID
+  activeStyleId           Int?
+  defaultPhase            Phase?   @relation(fields: [defaultPhaseId],references: [id],onDelete: SetNull)
+  activeStyle             Style?   @relation(fields: [activeStyleId],references: [id],onDelete: SetNull)
 }

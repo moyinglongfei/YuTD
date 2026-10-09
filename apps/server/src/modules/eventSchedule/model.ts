@@ -10,6 +10,7 @@ export const EventScheduleModel = {
     startTime: timeSchema,
     endTime: timeSchema,
     weeks: t.Array(t.Integer({ minimum: 1 }), { minItems: 1, uniqueItems: true }),
+    organizer: t.Optional(t.String()),
     location: t.Optional(t.String()),
   }),
 }

@@ -84,6 +84,8 @@ const { data: phase, loading, readError, refresh } = useRead(
         v-else-if="phase && phase.id === selectedPhaseId"
         :key="phase.id"
         :phase-id="phase.id"
+        :mode="'easy'"
+        :custom-weekdays="[4, 5]"
       />
     </section>
   </main>

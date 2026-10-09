@@ -5,6 +5,13 @@ import { gsap } from 'gsap'
 
 const props = defineProps<{
   phaseId: number
+  mode?: 'easy' | 'full' | 'custom'
+  customWeekdays?: number[]
+}>()
+
+const emit = defineEmits<{
+  'event-hover': [eventId: number | null]
+  'task-hover': [taskId: number | null]
 }>()
 
 // 数据获取
@@ -72,6 +79,56 @@ const maxEndMinutes = endMinutes.length ? Math.max(...endMinutes) : 22 * 60
 const scheduleStartMinutes = Math.floor(miniStartMinutes / 60) * 60
 const scheduleEndMinutes = Math.ceil(maxEndMinutes / 60) * 60
 const maxWeek = phase.weekCount
+const visibleWeekdays = computed(() => {
+  const mode = props.mode ?? 'full'
+
+  // full：始终显示全部
+  if (mode === 'full') {
+    return [...weekdays]
+  }
+
+  // custom：有参数就按参数，没有就全部
+  if (mode === 'custom') {
+    const selected = props.customWeekdays
+      ?.filter(day => Number.isInteger(day) && day >= 1 && day <= 7)
+
+    return selected?.length
+      ? weekdays.filter(day => selected.includes(weekdays.indexOf(day) + 1))
+      : [...weekdays]
+  }
+
+  // easy：整个周期内，只显示至少有一节课的周几
+  const hasClass = new Set<number>()
+
+  for (const event of events) {
+    for (const schedule of event.schedules) {
+      const weekday = schedule.weekday
+
+      if (!weekday || weekday < 1 || weekday > 7) {
+        continue
+      }
+
+      if (!Array.isArray(schedule.weeks)) {
+        continue
+      }
+
+      // 只要这个课程在 phase 的任意一周出现，就保留这个周几
+      if (schedule.weeks.some(week => week != null && Number(week) >= 1 && Number(week) <= maxWeek)) {
+        hasClass.add(weekday)
+      }
+    }
+  }
+
+  for (const task of tasks) {
+    for (const date of [task.plannedDate, task.dueDate]) {
+      if (date) {
+        hasClass.add(dateToWeekday(date))
+      }
+    }
+  }
+
+  return weekdays.filter((_, index) => hasClass.has(index + 1))
+})
 const hourMarks = Array.from(
   {
     length:
@@ -82,16 +139,26 @@ const hourMarks = Array.from(
 
 // 焦点缩放
 const maxFocusScale = 2 // 垂直放大倍数
-const focusColumnScale = 3 // 水平放大倍数
+let focusColumnScale = 3 // 水平放大倍数
+if (props.mode === 'custom' && props.customWeekdays?.length && props.customWeekdays?.length <= 2) {
+  focusColumnScale = 1
+}
 const focus = reactive({
   progress: 0,
   offsetY: 0
 })
-const columnWidths = reactive(
-  weekdays.map(() => ({ weight: 1 }))
+const columnWidths = ref(
+  visibleWeekdays.value.map(() => ({ weight: 1 }))
+)
+watch(
+  visibleWeekdays,
+  (days) => {
+    columnWidths.value = days.map(() => ({ weight: 1 }))
+  },
+  { immediate: true }
 )
 const gridColumns = computed(() => {
-  const columns = columnWidths.map((column) => {
+  const columns = columnWidths.value.map((column) => {
     return `minmax(0, ${column.weight}fr)`
   })
 
@@ -101,6 +168,16 @@ const displayHourPixels = computed(() => {
   return hourPixels.value * (1 + maxFocusScale * focus.progress)
 })
 const selectedBlockKey = ref<string | null>(null)
+let removeFocusClickListener: (() => void) | undefined
+
+function FocusClickListener(event: MouseEvent) {
+  const target = event.target
+
+  if (target instanceof Element && target.closest('.event-block'))
+    return
+
+  closeFocus()
+}
 
 let focusTween: ReturnType<typeof gsap.to> | undefined
 let columnTween: ReturnType<typeof gsap.to> | undefined
@@ -108,15 +185,23 @@ let columnTween: ReturnType<typeof gsap.to> | undefined
 function animateColumns(weekday: number | null) {
   columnTween?.kill()
 
-  const otherWeight = (weekdays.length - focusColumnScale)
-    / (weekdays.length - 1)
+  const count = visibleWeekdays.value.length
 
-  columnTween = gsap.to(columnWidths, {
+  if (count <= 1) {
+    columnWidths.value.forEach((column) => {
+      column.weight = weekday === null ? 1 : focusColumnScale
+    })
+    return
+  }
+
+  const otherWeight = (count - focusColumnScale) / (count - 1)
+
+  columnTween = gsap.to(columnWidths.value, {
     weight: (index: number) => {
       if (weekday === null)
         return 1
 
-      return index + 1 === weekday
+      return index === weekday - 1
         ? focusColumnScale
         : otherWeight
     },
@@ -162,6 +247,13 @@ function openFocus(key: string) {
     targetOffsetY -= desiredBottom - maxBottom
   }
 
+  if (selectedBlockKey.value === null) {
+    document.addEventListener('click', FocusClickListener, true)
+    removeFocusClickListener = () => {
+      document.removeEventListener('click', FocusClickListener, true)
+    }
+  }
+
   selectedBlockKey.value = key
   animateColumns(block.weekday)
 
@@ -178,6 +270,8 @@ function closeFocus() {
     return
 
   focusTween?.kill()
+  removeFocusClickListener?.()
+  removeFocusClickListener = undefined
   animateColumns(null)
 
   focusTween = gsap.to(focus, {
@@ -192,6 +286,8 @@ function closeFocus() {
 }
 
 onBeforeUnmount(() => {
+  removeFocusClickListener?.()
+  removeFocusClickListener = undefined
   focusTween?.kill()
   columnTween?.kill()
 })
@@ -214,7 +310,7 @@ function getWeekdayDate(weekNumber: number, weekday: number) {
 }
 const week = ref(1)
 const hourPixels = ref(72)
-const edgePixels = ref(10)
+const edgePixels = ref(20)
 const boardHeight = computed(() => {
   const duration = scheduleEndMinutes - scheduleStartMinutes
 
@@ -351,28 +447,8 @@ const todayWeekday = computed(() => {
 </script>
 
 <template>
-  <p>{{ now }}</p>
-  <USlider
-    v-model="week"
-    :min="1"
-    :max="maxWeek"
-    :step="1"
-    :label="`Weekday: ${week}`"
-    :disabled="selectedBlockKey !== null"
-  />
-  <p>{{ week }}</p>
-  <USlider
-    v-model="hourPixels"
-    :min="12"
-    :max="91"
-    :step="1"
-    :label="`${hourPixels}px`"
-    :disabled="selectedBlockKey !== null"
-  />
-  <p>{{ hourPixels }}</p>
   <div
     class="schedule-viewport"
-    @click="closeFocus"
   >
     <section
       class="schedule"
@@ -384,16 +460,16 @@ const todayWeekday = computed(() => {
         </div>
 
         <div
-          v-for="(weekday, index) in weekdays"
+          v-for="weekday in visibleWeekdays"
           :key="weekday"
           class="schedule-header-weekday"
           :class="{
-            'schedule-header-weekday--today': index + 1 === todayWeekday
+            'schedule-header-weekday--today': weekdays.indexOf(weekday) + 1 === todayWeekday
           }"
         >
           {{ weekday }}
           <span class="schedule-header-date">
-            {{ getWeekdayDate(week, index + 1) }}
+            {{ getWeekdayDate(week, weekdays.indexOf(weekday) + 1) }}
           </span>
         </div>
       </div>
@@ -418,13 +494,13 @@ const todayWeekday = computed(() => {
           </span>
         </div>
         <div
-          v-for="(weekday, index) in weekdays"
+          v-for="weekday in visibleWeekdays"
           :key="weekday"
           class="schedule-day-column"
         >
           <EventBlock
             v-for="block in eventBlocks.filter(
-              block => block.weekday === index + 1
+              block => block.weekday === weekdays.indexOf(weekday) + 1
             )"
             :key="block.key"
             :top="block.top"
@@ -438,11 +514,13 @@ const todayWeekday = computed(() => {
             :organizer="block.organizer"
             :focused="selectedBlockKey === block.key"
             :focus-progress="focus.progress"
+            @mouseenter="emit('event-hover', block.eventId)"
+            @mouseleave="emit('event-hover', null)"
             @select="openFocus(block.key)"
           />
           <TaskLine
             v-for="line in taskLines.filter(
-              line => line.weekday === index + 1
+              line => line.weekday === weekdays.indexOf(weekday) + 1
             )"
             :key="line.key"
             :top="line.top"
@@ -451,6 +529,8 @@ const todayWeekday = computed(() => {
             :task-name="line.taskName"
             :planned-date="line.plannedDate"
             :due-date="line.dueDate"
+            @mouseenter="emit('task-hover', line.taskId)"
+            @mouseleave="emit('task-hover', null)"
           />
         </div>
         <div
@@ -463,3 +543,138 @@ const todayWeekday = computed(() => {
     </section>
   </div>
 </template>
+
+<style scoped>
+.schedule-viewport {
+  width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: schedule;
+  overflow: visible;
+}
+
+.schedule {
+  --time-axis-width: 64px;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #2a56af;
+  background-image:
+  linear-gradient(
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.15)
+  ),
+  url('/images/bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.hour-short {
+  display: none;
+}
+@container schedule (max-width: 400px) {
+  .hour-full {
+    display: none;
+  }
+
+  .hour-short {
+    display: inline;
+    font-size: 13px;
+  }
+  .schedule-header-time {
+    font-size: 10px;
+  }
+  .schedule-time-axis {
+    text-align: center;
+  }
+
+  .schedule {
+    --time-axis-width: 16px;
+  }
+}
+
+.schedule-header {
+  display: grid;
+  grid-template-columns: var(--schedule-columns);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  background-color: #fff;
+  border-bottom: 1px solid #2a56af;
+}
+.schedule-body {
+  display: grid;
+  grid-template-columns: var(--schedule-columns);
+  position: relative;
+  overflow: clip;
+}
+
+.schedule-header {
+  border-bottom: 1px solid #2a56af;
+}
+.schedule-header-time {
+  display: grid;
+  place-items: center;
+}
+
+.schedule-body {
+  position: relative;
+}
+
+.schedule-header-weekday {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-left: 1px solid #2a56af;
+  position: relative;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 4px 4px 17px;
+}
+.schedule-header-weekday--today {
+  color: #dc2626;
+  background-color: #fef2f2;
+  font-weight: 700;
+}
+.schedule-header-date {
+  position: absolute;
+  left: 4px;
+  bottom: 3px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.schedule-time-axis {
+  position: relative;
+  overflow: hidden;
+}
+.schedule-day-column {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid #2a56af;
+  container-type: inline-size;
+  container-name: schedule-day;
+}
+
+.schedule-hour-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  transform: translateY(-50%);
+}
+
+.schedule-hour-line {
+  position: absolute;
+  right: 0;
+  left: var(--time-axis-width);
+  border-top: 1px solid #dbe4f4;
+  pointer-events: none;
+}
+</style>

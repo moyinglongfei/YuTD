@@ -21,6 +21,7 @@ function handleVisibilityChange() {
 }
 
 onMounted(() => {
+  initAppFont()
   update()
   clockTimer = setInterval(update, 60_000)
 

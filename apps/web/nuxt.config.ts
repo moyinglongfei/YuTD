@@ -3,8 +3,7 @@ import { fileURLToPath } from 'node:url'
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: [
-    '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/eslint'
   ],
   devtools: {
     enabled: true
@@ -21,15 +20,8 @@ export default defineNuxtConfig({
     }
   },
   css: [
-    '~/assets/css/main.css',
-    '~/assets/css/schedule.css',
-    '~/assets/css/pages/schedule.css',
-    '~/assets/css/pages/edit.css',
-    '~/assets/css/pages/setting.css'
+    '~/assets/css/main.css'
   ],
-  ui: {
-    colorMode: false
-  },
   runtimeConfig: {
     public: {
       apiBase: 'http://localhost:3000'

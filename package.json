@@ -4,11 +4,11 @@
   "packageManager": "bun@1.3.8",
   "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "bun run --filter web --filter server dev",
-    "dev:web": "bun run --filter web dev",
-    "dev:server": "bun run --filter server dev",
-    "build": "bun run --filter web build",
-    "typecheck": "bun run --filter '*' typecheck",
-    "db:generate": "bun run --filter server prisma:generate"
+    "dev": "bun-tasks web ::: server",
+    "web": "bun --filter @yutd/web dev",
+    "server": "bun --filter @yutd/server dev"
+  },
+  "devDependencies": {
+    "bun-tasks": "^0.1.4"
   }
 }
