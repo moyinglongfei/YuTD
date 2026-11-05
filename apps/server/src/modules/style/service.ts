@@ -1,41 +1,42 @@
-import type { StyleModelType } from './model'
+import { BadRequestException, NotFoundException } from 'elysia-http-exception'
 import { prisma } from '#backend/lib/prisma'
+import type { StyleModelType } from './model'
 
-function toStyle(record: Awaited<ReturnType<typeof prisma.style.findFirstOrThrow>>): StyleModelType['style'] {
-  return {
-    name: record.name,
-    defaultLocale: record.defaultLocale,
-  }
+function toStyle(record: Awaited<ReturnType<typeof prisma.style.findFirstOrThrow>>) {
+  const { id, name, showMode, backgroundPrimary, backgroundSecondary, textPrimary, textSecondary, fontFamily } = record
+  return { id, name, showMode: showMode as 0 | 1, backgroundPrimary, backgroundSecondary, textPrimary, textSecondary, fontFamily }
 }
-
+function normalize(data: StyleModelType['update']) {
+  const value = { ...data }
+  for (const key of ['name', 'fontFamily'] as const) {
+    if (value[key] !== undefined) {
+      value[key] = value[key].trim()
+      if (!value[key])
+        throw new BadRequestException('样式名称和字体不能为空')
+    }
+  }
+  return value
+}
 export abstract class StyleService {
   static async ensureStyle() {
-    let style = await prisma.style.findFirst()
-    if (!style) {
-      style = await prisma.style.create({
-        data: {
-          name: '我的样式',
-          defaultLocale: 'zh-CN',
-        },
-      })
-    }
-    return style
+    return await prisma.style.findFirst({ orderBy: { id: 'asc' } })
+      ?? prisma.style.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} })
   }
-
-  static async get() {
-    const style = await this.ensureStyle()
+  static async list() {
+    await this.ensureStyle()
+    return (await prisma.style.findMany({ orderBy: { id: 'asc' } })).map(toStyle)
+  }
+  static async get(id: number) {
+    const style = await prisma.style.findUnique({ where: { id } })
+    if (!style)
+      throw new NotFoundException('样式预设不存在')
     return toStyle(style)
   }
-
-  static async update(data: StyleModelType['update']) {
-    const current = await this.ensureStyle()
-    const updated = await prisma.style.update({
-      where: { id: current.id },
-      data: {
-        name: data.name?.trim(),
-        defaultLocale: data.defaultLocale,
-      },
-    })
-    return toStyle(updated)
+  static async create(data: StyleModelType['create']) {
+    return toStyle(await prisma.style.create({ data: { ...data, ...normalize(data) } }))
+  }
+  static async update(id: number, data: StyleModelType['update']) {
+    await this.get(id)
+    return toStyle(await prisma.style.update({ where: { id }, data: normalize(data) }))
   }
 }

@@ -1,3 +1,8 @@
+import { calendarDayNumber, calendarWeekday } from '#shared/time'
+
+export { calendarWeekday, clockParts, addCalendarDays, calendarDayNumber, parseZonedDateTime, normalizeTimeZone, inferTimeZone } from '#shared/time'
+
+type Phase = ApiData<Api['api']['phase']['get']>[number]
 export const weekdays = [
   '周一',
   '周二',
@@ -20,8 +25,40 @@ export function minutesToTime(minutes: number) {
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
 }
 
-export function dateToWeekday(date: Date) {
-  const day = new Date(date).getDay()
+export function dateToWeekday(date: Date, timeZone = 'UTC') {
+  return calendarWeekday(calendarDate(date, timeZone))
+}
 
-  return day === 0 ? 7 : day
+export function calendarDate(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date)
+
+  const get = (type: 'year' | 'month' | 'day') =>
+    parts.find(part => part.type === type)?.value ?? ''
+
+  return `${get('year')}-${get('month')}-${get('day')}`
+}
+
+export function getWeekNumber(
+  date: Date | null | undefined,
+  phase: Phase | null | undefined,
+  timeZone: string
+): number | null {
+  if (!date || !phase) return null
+
+  const currentDate = calendarDate(date, timeZone)
+  const startDate = phase.startDate.toISOString().slice(0, 10)
+  const endDate = phase.endDate.toISOString().slice(0, 10)
+
+  if (currentDate < startDate || currentDate > endDate)
+    return null
+
+  const days = calendarDayNumber(currentDate)
+    - calendarDayNumber(startDate)
+
+  return Math.floor(days / 7) + 1
 }

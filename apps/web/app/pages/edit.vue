@@ -1,28 +1,55 @@
 <script setup lang="ts">
-import EventPreview from '~/components/preview/EventPreview.vue'
-import EventWrite from '~/components/write/EventWrite.vue'
-import PhasePreview from '~/components/preview/PhasePreview.vue'
-import PhaseWrite from '~/components/write/PhaseWrite.vue'
-import TaskPreview from '~/components/preview/TaskPreview.vue'
-import TaskWrite from '~/components/write/TaskWrite.vue'
-import { requestApiData } from '~/utils/api'
-import { useRead } from '~/composables/useRead'
+import EventEdit from '~/components/edit/EventEdit.vue'
+import type { EditableEvent } from '~/components/edit/EventEdit.vue'
+import TaskEdit from '~/components/edit/TaskEdit.vue'
+import TaskEditPopup from '~/components/edit/TaskEditPopup.vue'
+import { useApi } from '~/composables/useApi'
 
-const { $api } = useNuxtApp()
-const selectedPhaseId = useState<number | null>('selectedPhaseId', () => null)
+const nuxtApp = useNuxtApp()
 
-const { data: phase, loading, readError, refresh } = useRead(
-  () => `phase:${selectedPhaseId.value ?? 'none'}`,
-  async () => {
-    if (selectedPhaseId.value === null)
-      return null
-
-    return requestApiData(
-      $api.api.phase({ id: selectedPhaseId.value }).get(),
-      '获取阶段失败'
-    )
+const writePreferencesClient = useApi({
+  key: 'preferences',
+  read: api => api.api.preferences.get(),
+  write: (api, value: ApiData<Api['api']['preferences']['get']>) => api.api.preferences.put(value)
+})
+const writePreferencesClientState = useAsyncData(writePreferencesClient.key, writePreferencesClient.read, { deep: true })
+const { data: preferences } = writePreferencesClientState
+async function writePreferences(value: Parameters<typeof writePreferencesClient.write>[0]) {
+  try {
+    const result = await writePreferencesClient.write(value)
+    await writePreferencesClientState.refresh()
+    return result
+  } catch {
+    return undefined
   }
-)
+}
+const selectedPhaseId = computed({
+  get: () => preferences.value?.defaultPhaseId ?? null,
+  set: (value: number | null) => {
+    if (preferences.value)
+      void writePreferences({ ...preferences.value, defaultPhaseId: value })
+  }
+})
+
+const phaseClient = useApi({
+  key: () => `phase:${selectedPhaseId.value ?? 'none'}`,
+  read: async api => selectedPhaseId.value === null
+    ? null
+    : api.api.phase({ id: selectedPhaseId.value }).get()
+})
+const phaseClientState = useAsyncData(phaseClient.key, phaseClient.read, { deep: true })
+const { data: phase, pending: loading, refresh } = phaseClientState
+const selectedEvent = shallowRef<EditableEvent | null>(null)
+const taskEvent = shallowRef<EditableEvent | null>(null)
+watch(selectedPhaseId, () => {
+  selectedEvent.value = null
+  taskEvent.value = null
+})
+
+async function eventSaved(event: EditableEvent) {
+  selectedEvent.value = event
+  await refreshEditingData()
+}
 
 async function refreshEditingData() {
   const phaseId = selectedPhaseId.value
@@ -38,84 +65,102 @@ async function refreshEditingData() {
     )
   }
 
-  await refreshNuxtData(keys)
+  await nuxtApp.runWithContext(() => refreshNuxtData(keys))
 }
 </script>
 
 <template>
-  <main class="edit-page">
-    <section class="edit-page__container">
-      <header class="edit-page__header">
-        <p class="edit-page__eyebrow">
-          数据编辑
-        </p>
-        <h1 class="edit-page__title">
-          {{ phase?.name ?? '请选择 Phase' }}
-        </h1>
-      </header>
+  <main class="page-shell">
+    <div class="page-container">
+      <PageCard>
+        <header class="page-heading">
+          <p class="page-eyebrow">
+            数据编辑
+          </p>
+          <h1>
+            {{ phase?.name ?? '请选择 Phase' }}
+          </h1>
+        </header>
+      </PageCard>
 
       <div class="edit-page__workspace">
-        <aside class="edit-page__phase">
-          <PhasePreview
-            :selected-id="selectedPhaseId ?? undefined"
-            @select="selectedPhaseId = $event"
-          />
-        </aside>
-
-        <div class="edit-page__content">
-          <div
-            v-if="readError"
-            class="edit-page__state edit-page__state--error"
+        <div class="panel-stack">
+          <PageCard
+            v-if="!phase || phase.id !== selectedPhaseId"
           >
-            <p>{{ readError }}</p>
-            <button
-              type="button"
-              :disabled="loading"
-              @click="refresh()"
+            <header class="content-heading">
+              <h2 class="panel-title">
+                编辑内容
+              </h2>
+            </header>
+            <p
+              v-if="loading && selectedPhaseId !== null"
+              class="page-state"
+              role="status"
             >
-              {{ loading ? '重试中……' : '重试' }}
-            </button>
-          </div>
-          <p
-            v-else-if="loading"
-            class="edit-page__state"
-            role="status"
-          >
-            正在加载阶段……
-          </p>
-          <p
-            v-else-if="selectedPhaseId === null"
-            class="edit-page__state"
-          >
-            请先在边栏或阶段预览中选择一个 Phase 喵。
-          </p>
+              正在加载阶段……
+            </p>
+            <p
+              v-else-if="selectedPhaseId === null"
+              class="page-state"
+            >
+              请先在边栏中选择一个 Phase 喵。
+            </p>
+            <div
+              v-else
+              class="page-state"
+            >
+              <p>阶段尚未载入。</p>
+              <button
+                class="button"
+                type="button"
+                @click="refresh()"
+              >
+                重新加载
+              </button>
+            </div>
+          </PageCard>
 
           <div
             v-else-if="phase && phase.id === selectedPhaseId"
-            class="edit-page__forms"
+            class="panel-stack"
           >
-            <EventWrite
+            <EventEdit
               :key="phase.id"
               :phase-id="phase.id"
-              @created="refreshEditingData"
+              :week-count="phase.weekCount"
+              :event="selectedEvent"
+              @saved="eventSaved"
+              @new="selectedEvent = null"
+              @add-task="taskEvent = $event"
             />
-            <PhaseWrite @created="refreshEditingData" />
-            <TaskWrite
+            <TaskEdit
               :key="phase.id"
               :phase-id="phase.id"
-              @created="refreshEditingData"
+              @saved="refreshEditingData"
             />
           </div>
         </div>
       </div>
 
-      <div
-        v-if="phase && phase.id === selectedPhaseId"
-        class="edit-page__previews"
-      >
-        <EventPreview :phase-id="phase.id" />
-        <TaskPreview :phase-id="phase.id" />
-      </div>
-    </section>
+      <TaskEditPopup
+        v-if="taskEvent"
+        :open="true"
+        :editing="true"
+        :phase-id="taskEvent.phaseId"
+        :event-id="taskEvent.id"
+        @update:open="!$event && (taskEvent = null)"
+        @saved="refreshEditingData"
+      />
+    </div>
   </main>
 </template>
+
+<style scoped>
+.edit-page__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--page-gutter);
+}
+</style>

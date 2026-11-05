@@ -1,129 +1,35 @@
 <script setup lang="ts">
-import EventDetail from '~/components/EventDetail.vue'
-import TaskPreview from '~/components/preview/TaskPreview.vue'
-import { requestApiData } from '~/utils/api'
-import { useRead } from '~/composables/useRead'
+import TaskAttentionList from '~/components/preview/Task/TaskAttentionList.vue'
+import { useApi } from '~/composables/useApi'
 
-const { $api } = useNuxtApp()
-const selectedPhaseId = useState<number | null>('selectedPhaseId', () => null)
-const { now } = useSystemTime()
-
-const { data: phase, loading, readError, refresh } = useRead(
-  () => `phase:${selectedPhaseId.value ?? 'none'}`,
-  async () => {
-    if (selectedPhaseId.value === null)
-      return null
-
-    return requestApiData(
-      $api.api.phase({ id: selectedPhaseId.value }).get(),
-      '获取阶段失败'
-    )
-  }
-)
-
-const { data: events } = useRead(
-  () => `events:${selectedPhaseId.value ?? 'none'}`,
-  async () => {
-    if (selectedPhaseId.value === null)
-      return []
-
-    return requestApiData(
-      $api.api.event.get({ query: { phaseId: selectedPhaseId.value } }),
-      '获取课程失败'
-    )
-  }
-)
-
-function getWeekday(date: Date) {
-  return date.getDay() === 0 ? 7 : date.getDay()
-}
-
-const customWeekdays = computed(() => {
-  const current = now.value ?? new Date()
-  const tomorrow = new Date(current)
-  tomorrow.setDate(tomorrow.getDate() + 1)
-
-  return [getWeekday(current), getWeekday(tomorrow)]
+const preferencesClient = useApi({
+  key: 'preferences',
+  read: api => api.api.preferences.get(),
+  write: (api, value: ApiData<Api['api']['preferences']['get']>) => api.api.preferences.put(value)
 })
+const preferencesClientState = useAsyncData(preferencesClient.key, preferencesClient.read, { deep: true })
+const { data: preferences } = preferencesClientState
+const { data: phases } = useNuxtData<ApiData<Api['api']['phase']['get']>>('phases')
 
-function timeToMinutes(time: string) {
-  const [hours, minutes] = time.split(':').map(Number) as [number, number]
-  return hours * 60 + minutes
-}
+const selectedPhaseId = computed(() => preferences.value?.defaultPhaseId ?? null)
+const { now, timeZone } = useSystemTime()
+const displayedDay = computed(() => now.value ? calendarDate(now.value, timeZone.value) : null)
+const displayedWeekdays = computed(() => displayedDay.value
+  ? [calendarWeekday(displayedDay.value), calendarWeekday(addCalendarDays(displayedDay.value, 1))]
+  : [])
 
-function getOccurrenceDate(startDate: Date | string, week: number, weekday: number, time: string) {
-  const start = new Date(startDate)
-  const [hours, minutes] = time.split(':').map(Number) as [number, number]
-  const date = new Date(Date.UTC(
-    start.getUTCFullYear(),
-    start.getUTCMonth(),
-    start.getUTCDate() + (week - 1) * 7 + (weekday - 1),
-    hours,
-    minutes
-  ))
-
-  return new Date(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-    date.getUTCHours(),
-    date.getUTCMinutes()
-  )
-}
-
-const nearestEventId = computed(() => {
-  const current = now.value ?? new Date()
-  if (!phase.value || !events.value?.length)
-    return null
-
-  const candidates = events.value.flatMap(event =>
-    event.schedules.flatMap((schedule) => {
-      const weeks = Array.isArray(schedule.weeks)
-        ? schedule.weeks.filter(week => Number.isInteger(Number(week)))
-        : Array.from(
-            { length: phase.value?.weekCount ?? 0 },
-            (_, index) => index + 1
-          )
-
-      return weeks.map((week) => {
-        const start = getOccurrenceDate(
-          phase.value!.startDate,
-          Number(week),
-          schedule.weekday,
-          schedule.startTime
-        )
-        const end = new Date(start)
-        end.setMinutes(end.getMinutes() + timeToMinutes(schedule.endTime) - timeToMinutes(schedule.startTime))
-
-        return {
-          eventId: event.id,
-          start,
-          end
-        }
-      })
-    })
-  )
-
-  if (!candidates.length)
-    return null
-
-  const upcoming = candidates.filter(candidate => candidate.end.getTime() >= current.getTime())
-  const pool = upcoming.length ? upcoming : candidates
-  const nearest = pool.reduce((previous, currentCandidate) => {
-    const previousDistance = Math.abs(previous.start.getTime() - current.getTime())
-    const currentDistance = Math.abs(currentCandidate.start.getTime() - current.getTime())
-
-    return currentDistance < previousDistance ? currentCandidate : previous
-  })
-
-  return nearest.eventId
+const phaseClient = useApi({
+  key: () => `phase:${selectedPhaseId.value ?? 'none'}`,
+  read: async api => selectedPhaseId.value === null
+    ? null
+    : api.api.phase({ id: selectedPhaseId.value }).get()
 })
+const phaseClientState = useAsyncData(phaseClient.key, phaseClient.read, { deep: true })
+const { data: phase, pending: loading, refresh } = phaseClientState
+
 function EventHover(id: number | null) {
   if (id !== null) {
-    const event = events.value?.find(e => e.id === id)
-    if (event) {
-      console.log(`Hovered Event: ${event.name} (ID: ${event.id})`)
-    }
+    console.log(`Hovered Event ID: ${id}`)
   } else {
     console.log('No event hovered')
   }
@@ -139,153 +45,170 @@ function TaskHover(id: number | null) {
 
 <template>
   <main class="home-page">
-    <div
-      v-if="readError"
-      class="home-page__state home-page__state--error"
+    <PageCard
+      v-if="!phase || phase.id !== selectedPhaseId"
+      class="home-page__state"
+      width="100%"
+      height="100%"
     >
-      <p>{{ readError }}</p>
-      <button
-        type="button"
-        :disabled="loading"
-        @click="refresh()"
+      <p
+        v-if="loading && selectedPhaseId !== null"
+        class="page-state"
+        role="status"
       >
-        {{ loading ? '重试中……' : '重试' }}
-      </button>
-    </div>
-    <p
-      v-else-if="loading"
-      class="home-page__state"
-      role="status"
-    >
-      正在加载阶段……
-    </p>
-    <p
-      v-else-if="selectedPhaseId === null"
-      class="home-page__state"
-    >
-      请先在边栏选择一个 Phase 喵。
-    </p>
+        正在加载阶段……
+      </p>
+      <p
+        v-else-if="phases?.length === 0"
+        class="page-state"
+      >
+        <span>
+          还没有阶段。点击侧边栏的
+          <Icon
+            class="phase-create-hint-icon"
+            name="lucide:pen-line"
+            role="img"
+            aria-label="铅笔"
+          />
+          开启编辑模式，再点
+          <Icon
+            class="phase-create-hint-icon"
+            name="lucide:plus"
+            role="img"
+            aria-label="加号"
+          />
+          选择「阶段」，创建你的首个 Phase。
+        </span>
+      </p>
+      <p
+        v-else-if="selectedPhaseId === null"
+        class="page-state"
+      >
+        请先在边栏选择一个 Phase 喵。
+      </p>
+      <div
+        v-else
+        class="page-state"
+      >
+        <p>阶段尚未载入。</p>
+        <button
+          class="button"
+          type="button"
+          @click="refresh()"
+        >
+          重新加载
+        </button>
+      </div>
+    </PageCard>
     <div
       v-else-if="phase && phase.id === selectedPhaseId"
       class="home-page__layout"
     >
-      <div class="home-page__upper">
-        <section class="home-page__panel home-page__schedule">
-          <ScheduleTable
-            :key="phase.id"
-            :phase-id="phase.id"
-            mode="custom"
-            :custom-weekdays="customWeekdays"
-            @event-hover="EventHover($event)"
-            @task-hover="TaskHover($event)"
-          />
-        </section>
-        <section class="home-page__panel home-page__tasks">
-          <TaskPreview :phase-id="phase.id" />
-        </section>
-      </div>
-      <section class="home-page__panel home-page__detail">
-        <EventDetail
-          v-if="nearestEventId !== null"
-          :key="nearestEventId"
-          :event-id="nearestEventId"
+      <PageCard
+        class="home-page__schedule"
+        width="100%"
+        height="100%"
+        aria-label="课程表"
+      >
+        <ScheduleTable
+          v-if="displayedWeekdays.length"
+          :key="phase.id"
+          :phase-id="phase.id"
+          mode="custom"
+          background-key="home:schedule"
+          :weekdays="displayedWeekdays"
+          auto-center
+          @event-hover="EventHover($event)"
+          @task-hover="TaskHover($event)"
         />
         <p
           v-else
-          class="home-page__empty"
+          class="page-state"
+          role="status"
         >
-          暂无最近课程。
+          正在确认日期……
         </p>
-      </section>
+      </PageCard>
+      <PageCard
+        class="home-page__tasks"
+        width="100%"
+        height="100%"
+        aria-label="任务"
+      >
+        <TaskAttentionList
+          :phase-id="phase.id"
+          @task-hover="TaskHover($event)"
+        />
+      </PageCard>
+      <PageCard
+        class="home-page__sentence"
+        width="100%"
+        height="100%"
+        aria-label="每日一句"
+      />
+      <PageCard
+        class="home-page__tips"
+        width="100%"
+        height="100%"
+        aria-label="每日提示"
+      >
+        <DailyTips :phase-id="phase.id" />
+      </PageCard>
     </div>
   </main>
 </template>
 
 <style scoped>
 .home-page {
-  min-height: 100dvh;
-  padding: var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  height: 100dvh;
+  min-width: 0;
+  padding: 7px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 8% 8%, color-mix(in srgb, var(--text-secondary) 12%, transparent), transparent 55%),
+    radial-gradient(ellipse at 95% 85%, color-mix(in srgb, var(--background-secondary) 65%, transparent), transparent 50%),
+    var(--background-primary);
 }
 
 .home-page__layout {
   display: grid;
-  grid-template-rows: 7fr 3fr;
-  gap: var(--page-gutter);
-  min-height: calc(100dvh - var(--page-gutter) * 2);
-}
-
-.home-page__upper {
-  display: grid;
-  grid-template-columns: 5fr 5fr;
-  gap: var(--page-gutter);
-  min-height: 0;
-}
-
-.home-page__panel {
+  width: 100%;
+  flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: 16px;
-  border: 1px solid var(--page-border-color);
-  border-radius: var(--page-radius);
-  background-color: var(--page-card-background);
-  overflow: auto;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 13fr);
+  grid-template-rows: minmax(0, 7fr) minmax(0, 1fr) minmax(0, 2fr);
+  grid-template-areas:
+    'schedule tasks'
+    'schedule sentence'
+    'schedule tips';
+  gap: 7px;
 }
+.home-page__state { flex: 1; }
 
 .home-page__schedule {
-  display: flex;
-  flex-direction: column;
+  grid-area: schedule;
 }
 
-.home-page__schedule :deep(.schedule-viewport) {
-  flex: 1;
+.home-page__tasks {
+  grid-area: tasks;
 }
 
-.home-page__state {
-  display: grid;
-  place-items: center;
-  min-height: 180px;
-  margin: 0;
-  border: 1px dashed var(--page-border-color);
-  border-radius: var(--page-radius);
-  background-color: var(--page-card-background);
-  color: var(--schedule-state-color);
-  font-size: 14px;
-  text-align: center;
+.home-page__sentence {
+  grid-area: sentence;
 }
 
-.home-page__state--error {
-  gap: 12px;
-  color: var(--page-danger-color);
+.home-page__tips {
+  grid-area: tips;
 }
 
-.home-page__state--error button {
-  padding: 8px 16px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  background-color: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.home-page__empty {
-  margin: 0;
-  color: var(--schedule-state-color);
-  font-size: 14px;
-}
-
-@media (max-width: 1100px) {
-  .home-page__layout {
-    grid-template-rows: auto 70vh auto;
-    min-height: 0;
-  }
-
-  .home-page__upper {
-    grid-template-columns: 1fr;
-  }
-
-  .home-page__schedule {
-    min-height: 70vh;
+@media (width < 480px) {
+  .home-page {
+    height: calc(100dvh - var(--app-bottom-bar-height));
   }
 }
 </style>

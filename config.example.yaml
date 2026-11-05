@@ -1,0 +1,14 @@
+system:
+  host: localhost
+  # 后端端口
+  port: 3000
+  # 前端监听地址与端口
+  webHost: localhost
+  webPort: 3001
+auth:
+  enabled: false
+  password: admin
+  expiresIn: never
+  secret:
+features:
+  enableReminder: true

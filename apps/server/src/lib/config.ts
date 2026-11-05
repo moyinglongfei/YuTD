@@ -1,21 +1,30 @@
 import type { ConfigModelType } from '#backend/modules/config/model'
 import crypto from 'node:crypto'
-import fs from 'node:fs'
-import path from 'node:path'
 import process from 'node:process'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { Value } from '@sinclair/typebox/value'
 import YAML from 'yaml'
 import { ConfigModel } from '#backend/modules/config/model'
 
-const CONFIG_PATH = path.resolve(process.cwd(), './config.yaml')
-const CONFIG_EXAMPLE_PATH = path.resolve(process.cwd(), './config.example.yaml')
+const CONFIG_PATH = fileURLToPath(new URL('../../../../config.yaml', import.meta.url))
+const CONFIG_EXAMPLE_PATH = fileURLToPath(new URL('../../../../config.example.yaml', import.meta.url))
+const LEGACY_CONFIG_PATH = fileURLToPath(new URL('../../config.yaml', import.meta.url))
+
+function saveConfig(text: string) {
+  const temporary = `${CONFIG_PATH}.${process.pid}.tmp`
+  fs.writeFileSync(temporary, text, 'utf8')
+  fs.renameSync(temporary, CONFIG_PATH)
+}
 
 export function loadConfig(): ConfigModelType['config'] {
   if (!fs.existsSync(CONFIG_PATH)) {
-    if (!fs.existsSync(CONFIG_EXAMPLE_PATH))
+    if (fs.existsSync(LEGACY_CONFIG_PATH))
+      fs.renameSync(LEGACY_CONFIG_PATH, CONFIG_PATH)
+    else if (!fs.existsSync(CONFIG_EXAMPLE_PATH))
       throw new Error(`缺少配置文件和配置模板：${CONFIG_PATH}、${CONFIG_EXAMPLE_PATH}`)
-
-    fs.copyFileSync(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
+    else
+      saveConfig(fs.readFileSync(CONFIG_EXAMPLE_PATH, 'utf8'))
   }
 
   const text = fs.readFileSync(CONFIG_PATH, 'utf8')
@@ -29,11 +38,20 @@ export function loadConfig(): ConfigModelType['config'] {
     throw new Error(`YAML 语法错误，请检查缩进或格式：${(error as Error).message}`)
   }
 
-  if (!data.auth.secret) {
+  let changed = false
+  // 旧配置保留后端和鉴权信息，只补充前端监听设置。
+  for (const [key, value] of Object.entries({ webHost: 'localhost', webPort: 3001 })) {
+    if (data?.system && data.system[key] === undefined) {
+      data.system[key] = value
+      doc.setIn(['system', key], value)
+      changed = true
+    }
+  }
+  if (data?.auth && !data.auth.secret) {
     const secret = crypto.randomBytes(32).toString('hex')
     doc.setIn(['auth', 'secret'], secret)
-    fs.writeFileSync(CONFIG_PATH, doc.toString(), 'utf8')
     data.auth.secret = secret
+    changed = true
   }
 
   if (!Value.Check(ConfigModel.config, data)) {
@@ -41,6 +59,9 @@ export function loadConfig(): ConfigModelType['config'] {
     throw new Error(`配置文件格式不正确：${CONFIG_PATH}
       具体的校验错误：${errors}`)
   }
+
+  if (changed)
+    saveConfig(doc.toString())
 
   return data as ConfigModelType['config']
 }
@@ -98,11 +119,7 @@ export function patchConfig(
     )
   }
 
-  fs.writeFileSync(
-    CONFIG_PATH,
-    doc.toString(),
-    'utf8',
-  )
+  saveConfig(doc.toString())
 
   return config as ConfigModelType['config']
 }

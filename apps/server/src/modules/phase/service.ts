@@ -14,6 +14,12 @@ export function getPhaseWeekCount(startDate: Date, endDate: Date) {
   return Math.floor((endDate.getTime() - startDate.getTime()) / DAY_IN_MS / 7) + 1
 }
 
+export function getPhaseWeekNumber(date: string, startDate: Date, endDate: Date) {
+  const selected = parseDate(date)
+  if (selected < startDate || selected > endDate) return null
+  return Math.floor((selected.getTime() - startDate.getTime()) / DAY_IN_MS / 7) + 1
+}
+
 function validateRange(startDate: Date, endDate: Date) {
   if (startDate.getUTCDay() !== 1)
     throw new BadRequestException('阶段开始日期必须是周一')
@@ -81,13 +87,16 @@ export abstract class PhaseService {
     const endDate = data.endDate ? parseDate(data.endDate) : current.endDate
     validateRange(startDate, endDate)
 
-    const phase = await prisma.phase.update({
-      where: { id },
-      data: {
-        name: data.name?.trim(),
-        startDate,
-        endDate,
-      },
+    const phase = await prisma.$transaction(async (tx) => {
+      const updated = await tx.phase.update({ where: { id }, data: { name: data.name?.trim(), startDate, endDate } })
+      if (startDate.getTime() !== current.startDate.getTime() || endDate.getTime() !== current.endDate.getTime()) {
+        await tx.week.updateMany({ where: { phaseId: id }, data: { weekNumber: null } })
+        const weeks = await tx.week.findMany({ where: { phaseId: id }, select: { id: true, date: true } })
+        for (const week of weeks) {
+          await tx.week.update({ where: { id: week.id }, data: { weekNumber: getPhaseWeekNumber(week.date, startDate, endDate) } })
+        }
+      }
+      return updated
     })
     return withWeekCount(phase)
   }

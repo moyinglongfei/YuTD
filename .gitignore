@@ -51,9 +51,11 @@ public/assets/fonts/
 
 # server generated and local runtime data
 /apps/server/generated/prisma/
+/apps/server/uploads/
 /apps/server/config.yaml
+/config.yaml
+/config.yaml.*.tmp
 /apps/server/dev.db
 /apps/server/dev.db-*
 /apps/server/prisma/seed.ts
-/apps/server/tests
 *.db-journal

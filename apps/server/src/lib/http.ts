@@ -4,6 +4,7 @@ import {
   httpExceptionPlugin,
 } from 'elysia-http-exception'
 import logixlysia from 'logixlysia'
+import { bumpDataVersion } from './version'
 
 const elysiaErrorStatus = {
   VALIDATION: 400,
@@ -47,13 +48,17 @@ export const httpPlugin = new Elysia({
   .use(httpExceptionPlugin())
   .onAfterHandle({
     as: 'global',
-  }, ({ responseValue, set }) => {
+  }, async ({ responseValue, set, request }) => {
+    const statusCode = responseValue instanceof Response
+      ? responseValue.status
+      : typeof set.status === 'number' ? set.status : 200
+
+    if (statusCode < 400 && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+      && new URL(request.url).pathname.startsWith('/api/'))
+      await bumpDataVersion()
+
     if (responseValue instanceof Response)
       return responseValue
-
-    const statusCode = typeof set.status === 'number'
-      ? set.status
-      : 200
 
     if (statusCode >= 400 || statusCode === 204)
       return responseValue

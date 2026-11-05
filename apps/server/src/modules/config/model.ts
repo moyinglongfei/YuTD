@@ -6,6 +6,8 @@ export const ConfigModel = {
     system: t.Object({
       host: t.String(),
       port: t.Number(),
+      webHost: t.String(),
+      webPort: t.Integer({ minimum: 1, maximum: 65535 }),
     }),
 
     auth: t.Object({
@@ -24,6 +26,8 @@ export const ConfigModel = {
     system: t.Object({
       host: t.String(),
       port: t.Number(),
+      webHost: t.String(),
+      webPort: t.Integer({ minimum: 1, maximum: 65535 }),
     }),
 
     auth: t.Object({
@@ -41,6 +45,8 @@ export const ConfigModel = {
       system: t.Partial(t.Object({
         host: t.String(),
         port: t.Number(),
+        webHost: t.String(),
+        webPort: t.Integer({ minimum: 1, maximum: 65535 }),
       })),
 
       auth: t.Partial(t.Object({

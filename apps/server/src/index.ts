@@ -9,11 +9,14 @@ import { ConfigService } from '#backend/modules/config/service'
 import { eventRoutes } from '#backend/modules/event'
 import { eventScheduleRoutes } from '#backend/modules/eventSchedule'
 import { phaseRoutes } from '#backend/modules/phase'
+import { imageRoutes } from '#backend/modules/image'
+import { resourceRoutes } from '#backend/modules/resource'
 import { preferencesRoutes } from '#backend/modules/preferences'
 import { styleRoutes } from '#backend/modules/style'
 import { taskRoutes } from '#backend/modules/task/index'
 import { tipRoutes } from '#backend/modules/tip'
 import { httpPlugin } from './lib/http'
+import { readDataVersion } from './lib/version'
 
 try {
   ConfigService.init()
@@ -31,12 +34,18 @@ const app = new Elysia()
   .use(getLoginRoutes())
   .guard({}, app => app
     .derive(authGuard)
+    .get('/api/version', ({ set }) => {
+      set.headers['cache-control'] = 'no-store'
+      return readDataVersion()
+    })
     .use(phaseRoutes)
     .use(preferencesRoutes)
     .use(eventRoutes)
     .use(eventScheduleRoutes)
     .use(configRoutes)
     .use(styleRoutes)
+    .use(imageRoutes)
+    .use(resourceRoutes)
     .use(taskRoutes)
     .use(tipRoutes))
   .get('/', () => ({ message: 'YuTD 后端运行正常喵！' }))

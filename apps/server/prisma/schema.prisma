@@ -9,6 +9,43 @@ datasource db {
   provider = "sqlite"
 }
 
+model ServerInfo {
+  id        Int      @id @default(1)
+  version   BigInt   @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Image {
+  id              String   @id @default(uuid())
+  name            String
+  mimeType        String
+  extension       String
+  size            Int
+  originalSize    Int?
+  thumbnailSize   Int?
+  thumbnailWidth  Int?
+  thumbnailHeight Int?
+  width           Int
+  height          Int
+  createdAt       DateTime @default(now())
+  queuePosition   Int?
+  randomEnabled   Boolean  @default(true)
+  backgrounds     ImageBackground[]
+
+  @@index([createdAt, id])
+  @@index([queuePosition])
+}
+
+model ImageBackground {
+  backgroundKey String @id
+  imageId       String
+  image         Image @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  position      Json?
+
+  @@index([imageId])
+}
+
 // 任务
 model Task {
   id          Int     @id @default(autoincrement())
@@ -16,6 +53,7 @@ model Task {
   description String?
 
   completed Boolean @default(false)
+  completedAt DateTime? //完成或放弃的时间，重新打开后清空
 
   priority Int @default(3)
 
@@ -23,7 +61,7 @@ model Task {
   updatedAt DateTime @updatedAt
 
   dueDate     DateTime? //截止日期
-  plannedDate DateTime? //计划日期(预计扩充成多日期)
+  plannedDate DateTime? //计划日期
 
   estimatedTime Int? //预计花费时间
   actualTime    Int? //实际花费时间
@@ -39,6 +77,8 @@ model Task {
   event   Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   status TaskStatus @default(TODO)
+
+  @@index([completedAt])
 }
 
 model TaskReminder {
@@ -79,6 +119,8 @@ model Phase {
   events      Event[]
   tasks       Task[]
   tips        Tip[]
+  dates       Date[]
+  weeks       Week[]
   preferences Preferences[]
 }
 
@@ -104,20 +146,35 @@ model Tip {
   content   String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) // 仅在内容变化时由服务更新
-  dates     TipDate[]
+  dates     Date[]    @relation("TipDates")
+  weeks     Week[]    @relation("TipWeeks")
   events    Event[]
   phases    Phase[]
   tasks     Task[]
 }
 
-model TipDate {
-  id    Int    @id @default(autoincrement())
-  date  String // YYYY-MM-DD，不进行时区转换
-  tipId Int
-  tip   Tip    @relation(fields: [tipId], references: [id], onDelete: Cascade)
+model Date {
+  id        String @id // phaseId（或 all）:YYYY-MM-DD
+  date      String // YYYY-MM-DD，不进行时区转换
+  taskState Int    @default(0) // 0 显示任务，1 已清空
+  phaseId   Int?
+  phase     Phase? @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  tips      Tip[]  @relation("TipDates")
 
-  @@unique([tipId, date])
-  @@index([date])
+  @@index([date, phaseId])
+}
+
+model Week {
+  id         String @id // phaseId（或 all）:周一日期
+  date       String // 周一的 YYYY-MM-DD
+  taskState  Int    @default(0)
+  weekNumber Int? // 所属 Phase 的第几周；无 Phase 的共享周留空
+  phaseId    Int?
+  phase      Phase? @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  tips       Tip[]  @relation("TipWeeks")
+
+  @@index([date, phaseId])
+  @@unique([phaseId, weekNumber])
 }
 
 // 事件日程
@@ -137,7 +194,12 @@ model EventSchedule {
 model Style {
   id                      Int      @id @default(autoincrement())
   name                    String   @default("我的样式")
-  defaultLocale           String   @default("zh-CN")
+  showMode                Int      @default(1) // 0 简洁，1 华丽
+  backgroundPrimary       String   @default("#f5f7fb")
+  backgroundSecondary     String   @default("#ffffff")
+  textPrimary             String   @default("#172033")
+  textSecondary           String   @default("#64748b")
+  fontFamily              String   @default("system-ui")
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   preferences             Preferences[]
@@ -146,8 +208,16 @@ model Style {
 // 偏好设置
 model Preferences{
   id                      Int      @id @default(autoincrement())
+  defaultLocale           String   @default("zh-CN")
   defaultPhaseId          Int?      //用户进入界面的默认阶段ID
   activeStyleId           Int?
+  sidebarWidth            Int      @default(64)
+  maxFocusScale           Float    @default(2)
+  focusColumnScale        Float    @default(3)
+  hourPixels              Int      @default(72)
+  edgePixels              Int      @default(20)
+  timeZone                String?
+  timeZoneAutomatic       Boolean  @default(true)
   defaultPhase            Phase?   @relation(fields: [defaultPhaseId],references: [id],onDelete: SetNull)
   activeStyle             Style?   @relation(fields: [activeStyleId],references: [id],onDelete: SetNull)
 }

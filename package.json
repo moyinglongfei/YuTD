@@ -1,12 +1,23 @@
 {
   "name": "YuTD",
   "private": true,
-  "packageManager": "bun@1.3.8",
+  "packageManager": "bun@1.4.3",
+  "engines": {
+    "bun": ">=1.4.3"
+  },
   "workspaces": ["apps/*"],
   "scripts": {
+    "postinstall": "bun --filter @yutd/server prisma:generate",
     "dev": "bun-tasks web ::: server",
+    "build": "bun --filter @yutd/server prisma:generate && bun --filter @yutd/web build",
+    "start": "bun-tasks start:web ::: start:server",
+    "start:web": "bun --filter @yutd/web start",
+    "start:server": "bun --filter @yutd/server start",
     "web": "bun --filter @yutd/web dev",
     "server": "bun --filter @yutd/server dev"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1"
   },
   "devDependencies": {
     "bun-tasks": "^0.1.4"
