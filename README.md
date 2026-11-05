@@ -4,6 +4,8 @@
 
 <p align="center">结合课程表与待办事项的通用日程规划软件，实用、多端，还有可爱!（？</p>
 
+<p align="center"><a href="https://yutd.yumolf.top">在线演示</a></p>
+
 <p align="center">
   <img src="./readme/1.png" width="100%" alt="YuTD 界面预览">
 </p>
