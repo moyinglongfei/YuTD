@@ -3,11 +3,10 @@ import type { App } from '@yutd/server'
 import { requestApiData } from '~/utils/api'
 
 export default defineNuxtPlugin((app) => {
-  const config = useRuntimeConfig()
   const router = useRouter()
   const { reportError } = useAppErrors()
   const authToken = useCookie<string | null>('yutd-auth-token', { path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 30 })
-  const api = treaty<App>(config.public.apiBase, {
+  const api = treaty<App>(window.location.origin, {
     onResponse: response => response.ok && response.headers.get('content-type')?.startsWith('image/')
       ? response.blob()
       : undefined,

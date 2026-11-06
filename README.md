@@ -36,4 +36,10 @@ bun run build
 bun start
 ```
 
+### 二进制运行
+
+```bash
+bun run build:binary
+```
+
 # Contributions are welcome!

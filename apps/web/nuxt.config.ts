@@ -1,4 +1,9 @@
 import { fileURLToPath } from 'node:url'
+import { readSystemConfig } from '../server/src/lib/config'
+
+const system = readSystemConfig()
+const apiHost = ['0.0.0.0', '::', '[::]'].includes(system.host) ? 'localhost' : system.host
+const apiAuthority = apiHost.includes(':') && !apiHost.startsWith('[') ? `[${apiHost}]` : apiHost
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -6,6 +11,7 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@nuxt/icon'
   ],
+  ssr: false,
   components: [
     { path: '~/components/preview/card', pathPrefix: false },
     { path: '~/components/preview', pathPrefix: false },
@@ -33,11 +39,6 @@ export default defineNuxtConfig({
   css: [
     '~/assets/css/main.css'
   ],
-  runtimeConfig: {
-    public: {
-      apiBase: 'http://localhost:3000'
-    }
-  },
   dir: {
     shared: '../../shared'
   },
@@ -48,9 +49,26 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-06-30',
   nitro: {
-    preset: 'Bun',
-    // 将运行依赖打入产物，避免 Windows 创建符号链接失败后发布包缺失依赖。
-    noExternals: true
+    preset: 'static',
+    output: { publicDir: fileURLToPath(new URL('../server/web', import.meta.url)) },
+    devProxy: { '/api': { target: `http://${apiAuthority}:${system.port}`, changeOrigin: true } },
+    rollupConfig: { // 屏蔽 Nitro 生成的缓存驱动和 h3 的警告
+      onwarn(warning, warn) {
+        const message = warning.message.replace(/\\/g, '/')
+
+        const cacheDriverWarning
+          = warning.code === 'UNRESOLVED_IMPORT'
+            && message.includes('/@nuxt/nitro-server/dist/runtime/utils/cache-driver.mjs')
+
+        const h3Warning
+          = warning.code === 'UNUSED_EXTERNAL_IMPORT'
+            && message.includes('/@nuxt/nitro-server/dist/h3.mjs')
+
+        if (cacheDriverWarning || h3Warning) return
+
+        warn(warning)
+      }
+    }
   },
   eslint: {
     config: {
@@ -59,5 +77,11 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+  icon: {
+    provider: 'none',
+    serverBundle: false,
+    fallbackToApi: false,
+    clientBundle: { scan: { globInclude: ['app/**/*.{vue,ts}'] } }
   }
 })

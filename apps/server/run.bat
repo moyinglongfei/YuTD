@@ -1,1 +1,0 @@
-bun --watch src/index.ts

@@ -1,20 +1,27 @@
-import type { ConfigModelType } from '#backend/modules/config/model'
+import type { ConfigModelType } from '../modules/config/model'
 import crypto from 'node:crypto'
 import process from 'node:process'
 import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { Value } from '@sinclair/typebox/value'
 import YAML from 'yaml'
-import { ConfigModel } from '#backend/modules/config/model'
+import { ConfigModel } from '../modules/config/model'
+import { configDirectory, serverDirectory } from './paths'
 
-const CONFIG_PATH = fileURLToPath(new URL('../../../../config.yaml', import.meta.url))
-const CONFIG_EXAMPLE_PATH = fileURLToPath(new URL('../../../../config.example.yaml', import.meta.url))
-const LEGACY_CONFIG_PATH = fileURLToPath(new URL('../../config.yaml', import.meta.url))
+const CONFIG_PATH = join(configDirectory, 'config.yaml')
+const CONFIG_EXAMPLE_PATH = join(configDirectory, 'config.example.yaml')
+const LEGACY_CONFIG_PATH = join(serverDirectory, 'config.yaml')
 
 function saveConfig(text: string) {
   const temporary = `${CONFIG_PATH}.${process.pid}.tmp`
   fs.writeFileSync(temporary, text, 'utf8')
   fs.renameSync(temporary, CONFIG_PATH)
+}
+
+export function readSystemConfig(): ConfigModelType['config']['system'] {
+  const path = fs.existsSync(CONFIG_PATH) ? CONFIG_PATH
+    : fs.existsSync(LEGACY_CONFIG_PATH) ? LEGACY_CONFIG_PATH : CONFIG_EXAMPLE_PATH
+  return YAML.parse(fs.readFileSync(path, 'utf8')).system
 }
 
 export function loadConfig(): ConfigModelType['config'] {
@@ -39,11 +46,11 @@ export function loadConfig(): ConfigModelType['config'] {
   }
 
   let changed = false
-  // 旧配置保留后端和鉴权信息，只补充前端监听设置。
-  for (const [key, value] of Object.entries({ webHost: 'localhost', webPort: 3001 })) {
-    if (data?.system && data.system[key] === undefined) {
-      data.system[key] = value
-      doc.setIn(['system', key], value)
+  // 单端口部署不再保存前端监听配置。
+  for (const key of ['webHost', 'webPort']) {
+    if (data?.system && key in data.system) {
+      delete data.system[key]
+      doc.deleteIn(['system', key])
       changed = true
     }
   }

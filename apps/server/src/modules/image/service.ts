@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
 import type { Image } from '#prisma/client'
 import { prisma } from '#backend/lib/prisma'
+import { serverDirectory } from '#backend/lib/paths'
 import { MAX_IMAGE_BYTES, type ImageList, type ImageListQuery, type StoredImage, type ImageRotation } from '#shared/images'
 import { ImageBackgroundService } from './background'
 
-const directory = fileURLToPath(new URL('../../../uploads/images/', import.meta.url))
+const directory = join(serverDirectory, 'uploads/images')
 const formats = {
   jpeg: { mimeType: 'image/jpeg', extension: 'jpg' },
   png: { mimeType: 'image/png', extension: 'png' },

@@ -1,10 +1,11 @@
-import process from 'node:process'
-import { existsSync, mkdirSync, writeFileSync, statSync, unlinkSync } from 'node:fs'
+/// <reference path="../assets.d.ts" />
+import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { Database } from 'bun:sqlite'
 import { PrismaLibSql } from '@prisma/adapter-libsql'
 import { PrismaClient } from '../../generated/prisma/client'
-import { getDatabaseFile, getDatabaseUrl, serverDirectory } from './database'
+import initialSchema from '../../generated/prisma/initialize.sql' with { type: 'text' }
+import { getDatabaseFile, getDatabaseUrl } from './database'
 import 'dotenv/config'
 
 const connectionString = getDatabaseUrl()
@@ -14,19 +15,18 @@ const databaseFile = getDatabaseFile(connectionString)
 if (databaseFile && !existsSync(databaseFile)) {
   mkdirSync(dirname(databaseFile), { recursive: true })
   writeFileSync(databaseFile, '', { flag: 'wx' })
-  const initialized = Bun.spawnSync([
-    process.execPath,
-    fileURLToPath(new URL('../../node_modules/prisma/build/index.js', import.meta.url)),
-    'db', 'push',
-  ], {
-    cwd: serverDirectory,
-    env: { ...process.env, DATABASE_URL: connectionString },
-    stdout: 'inherit',
-    stderr: 'inherit',
-  })
-  if (initialized.exitCode !== 0) {
-    if (statSync(databaseFile).size === 0) unlinkSync(databaseFile)
-    throw new Error('首次数据库初始化失败，请检查上方 Prisma 错误后重新启动')
+  let database: Database | undefined
+  try {
+    // SQL 由 Prisma schema 生成并随程序打包，首次建库不依赖外部 CLI。
+    database = new Database(databaseFile)
+    database.transaction(() => database!.exec(initialSchema))()
+  } catch (cause) {
+    database?.close()
+    database = undefined
+    unlinkSync(databaseFile)
+    throw new Error('首次数据库初始化失败', { cause })
+  } finally {
+    database?.close()
   }
 }
 

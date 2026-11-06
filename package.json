@@ -10,9 +10,8 @@
     "postinstall": "bun --filter @yutd/server prisma:generate",
     "dev": "bun-tasks web ::: server",
     "build": "bun --filter @yutd/server prisma:generate && bun --filter @yutd/web build",
-    "start": "bun-tasks start:web ::: start:server",
-    "start:web": "bun --filter @yutd/web start",
-    "start:server": "bun --filter @yutd/server start",
+    "build:binary": "bun run build && bun --filter @yutd/server build:binary",
+    "start": "bun --filter @yutd/server start",
     "web": "bun --filter @yutd/web dev",
     "server": "bun --filter @yutd/server dev"
   },

@@ -1,6 +1,8 @@
 import process from 'node:process'
+import { extname, join } from 'node:path'
 import { cors } from '@elysiajs/cors'
 import { openapi } from '@elysiajs/openapi'
+import { staticPlugin } from '@elysia/static'
 import { Elysia } from 'elysia'
 
 import { authGuard, getLoginRoutes } from '#backend/lib/auth'
@@ -17,6 +19,7 @@ import { taskRoutes } from '#backend/modules/task/index'
 import { tipRoutes } from '#backend/modules/tip'
 import { httpPlugin } from './lib/http'
 import { readDataVersion } from './lib/version'
+import { serverDirectory } from './lib/paths'
 
 try {
   ConfigService.init()
@@ -26,6 +29,8 @@ catch (e) {
   process.exit(1)
 }
 const config = ConfigService.get()
+const webDirectory = join(serverDirectory, 'web')
+const webIndex = Bun.file(join(webDirectory, 'index.html'))
 
 const app = new Elysia()
   .use(openapi())// 启用 OpenAPI 支持
@@ -48,10 +53,19 @@ const app = new Elysia()
     .use(resourceRoutes)
     .use(taskRoutes)
     .use(tipRoutes))
-  .get('/', () => ({ message: 'YuTD 后端运行正常喵！' }))
+  .use(staticPlugin({ assets: webDirectory, prefix: '', alwaysStatic: true, maxAge: 0, directive: 'no-cache' }))
+  .get('/*', async ({ request }) => {
+    const path = new URL(request.url).pathname
+    if (path === '/api' || path.startsWith('/api/'))
+      return Response.json({ message: '接口不存在' }, { status: 404 })
+    if (extname(path)) return new Response('Not Found', { status: 404 })
+    if (!await webIndex.exists())
+      return new Response('前端尚未构建，请在项目根目录运行 bun run build。', { status: 503 })
+    return new Response(webIndex, { headers: { 'cache-control': 'no-cache' } })
+  })
 
 app.listen({ port: config.system.port, hostname: config.system.host }, () => {
-  console.warn(`YuTD 后端成功运行在 http://${config.system.host}:${config.system.port}`)
+  console.warn(`YuTD 运行在 http://${config.system.host}:${config.system.port}`)
 })
 
 export type App = typeof app

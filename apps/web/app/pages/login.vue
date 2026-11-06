@@ -24,7 +24,6 @@ async function login() {
       && !/^\/login\/?(?:[?#]|$)/.test(redirect)
       ? redirect
       : '/'
-    // 重新进入应用，让服务端和 API 客户端都读取刚保存的 Cookie。
     await navigateTo(target, { external: true, replace: true })
   } catch (reason) {
     error.value = reason instanceof Error ? reason.message : '验证失败，请重试'

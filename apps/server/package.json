@@ -5,14 +5,16 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
+    "build:binary": "bun run prisma:generate && bun build.ts",
     "typecheck": "tsc --noEmit",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate && prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script --output generated/prisma/initialize.sql"
   },
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
     "@elysia/eden": "^1.4.10",
+    "@elysia/static": "^1.4.12",
     "@elysiajs/cors": "^1.4.2",
     "@elysiajs/jwt": "^1.4.2",
     "@elysiajs/openapi": "^1.4.15",
@@ -27,7 +29,7 @@
     "yaml": "^2.8.2"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/bun": "1.4.3",
     "typescript": "5.9.3"
   }
 }

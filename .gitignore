@@ -32,6 +32,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # caches
 .eslintcache
 .cache/
+.bun-cache/
 *.tsbuildinfo
 
 # Nuxt generated files
@@ -50,6 +51,7 @@ cypress/downloads/
 public/assets/fonts/
 
 # server generated and local runtime data
+/apps/server/web/
 /apps/server/generated/prisma/
 /apps/server/uploads/
 /apps/server/config.yaml

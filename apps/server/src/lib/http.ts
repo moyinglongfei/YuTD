@@ -49,6 +49,10 @@ export const httpPlugin = new Elysia({
   .onAfterHandle({
     as: 'global',
   }, async ({ responseValue, set, request }) => {
+    const path = new URL(request.url).pathname
+    if (path !== '/api' && !path.startsWith('/api/'))
+      return responseValue
+
     const statusCode = responseValue instanceof Response
       ? responseValue.status
       : typeof set.status === 'number' ? set.status : 200
