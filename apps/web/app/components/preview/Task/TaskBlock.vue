@@ -19,6 +19,7 @@ const props = withDefaults(defineProps<{
   variant?: 'card' | 'row'
   attentionDate?: string
   centerGlowColor?: string
+  moving?: boolean
   overdue?: 'due' | 'plan'
   interactive?: boolean
   editable?: boolean
@@ -301,6 +302,7 @@ defineExpose({ updateRect: () => glass.value?.updateRect() })
       :color="simpleMaterial ? currentTask.event?.color ?? undefined : undefined"
       :show-original="detail > 0 && completed"
       :center-glow-color="centerGlowColor"
+      :moving="moving"
       aria-hidden="true"
       @color-change="glassColors = $event"
     />

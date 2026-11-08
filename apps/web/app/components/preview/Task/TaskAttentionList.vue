@@ -246,6 +246,7 @@ function updateTaskRect(instance: unknown) {
 
 const glassTiles = new Map<string | number, { updateRect: () => void }>()
 const movingTiles = shallowReactive(new Map<Element, Set<string>>())
+const moving = computed(() => movingTiles.size > 0)
 let layoutFrame = 0
 function setGlassTile(key: string | number, instance: unknown) {
   if (instance) glassTiles.set(key, instance as { updateRect: () => void })
@@ -507,6 +508,7 @@ onBeforeUnmount(() => {
             <TaskBlock
               :ref="instance => setGlassTile(item.id, instance)"
               class="task-attention__block"
+              :moving="moving"
               :task="item.task"
               :overdue="overdue(item.task)"
               :center-glow-color="taskCenterGlow(item.task)"

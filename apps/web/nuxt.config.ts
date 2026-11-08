@@ -51,7 +51,9 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'static',
     output: { publicDir: fileURLToPath(new URL('../server/web', import.meta.url)) },
-    devProxy: { '/api': { target: `http://${apiAuthority}:${system.port}`, changeOrigin: true } },
+    devProxy: {
+      '/api': { target: `http://${apiAuthority}:${system.port}/api`, changeOrigin: true }
+    },
     rollupConfig: { // 屏蔽 Nitro 生成的缓存驱动和 h3 的警告
       onwarn(warning, warn) {
         const message = warning.message.replace(/\\/g, '/')

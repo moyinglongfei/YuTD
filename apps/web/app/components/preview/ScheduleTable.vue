@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
 import { requestApiData } from '~/utils/api'
 import EventBlock from '~/components/preview/Event/EventBlock.vue'
 import { gsap } from 'gsap'
@@ -296,7 +295,7 @@ function animateColumns(columnKey: string | null) {
         : otherWeight
     },
     duration: 0.45,
-    ease: 'power4.out'
+    ease: 'power3.out'
   })
 }
 
@@ -352,7 +351,7 @@ function openFocus(key: string) {
     progress: 1,
     offsetY: targetOffsetY,
     duration: 0.45,
-    ease: 'power4.out',
+    ease: 'power3.out',
     onComplete() {
       focusMoving.value = false
     }
@@ -373,7 +372,7 @@ function closeFocus() {
     progress: 0,
     offsetY: 0,
     duration: 0.45,
-    ease: 'power4.out',
+    ease: 'power3.out',
     onComplete() {
       focusMoving.value = false
       selectedBlockKey.value = null
@@ -473,62 +472,92 @@ const eventBlocks = computed(() =>
   ))
 )
 
-const taskLines = computed(() => {
-  const lines = tasks.value.flatMap((task) => {
-    const columnFor = (date: Date) => visibleColumns.value.find(column => column.date === calendarDate(date, timeZone.value))
-    const planColumn = task.plannedDate ? columnFor(task.plannedDate) : undefined
-    const dueColumn = task.dueDate ? columnFor(task.dueDate) : undefined
+interface TaskLineState {
+  key: string
+  task: (typeof initialTasks)[number]
+  kind: 'plan' | 'due'
+  minutes: number
+  insideEvent: boolean
+  top: Ref<number>
+  covered: Ref<boolean>
+  markerOffset: Ref<number>
+}
 
-    const plannedLines = task.plannedDate && planColumn
-      ? [{
-          key: `${task.id}-plan`,
-          columnKey: planColumn.key,
-          task,
-          taskId: task.id,
-          weekday: dateToWeekday(task.plannedDate),
-          taskName: task.title,
-          kind: 'plan' as const,
-          plannedDate: task.plannedDate,
-          dueDate: undefined,
-          top: minutesToY(dateToMinutes(task.plannedDate))
-        }]
-      : []
+const taskLines = shallowRef(new Map<string, TaskLineState[]>())
 
-    const dueLines
-      = task.dueDate && dueColumn
-        ? [{
-            key: `${task.id}-due`,
-            columnKey: dueColumn.key,
-            task,
-            taskId: task.id,
-            weekday: dateToWeekday(task.dueDate),
-            taskName: task.title,
-            kind: 'due' as const,
-            plannedDate: undefined,
-            dueDate: task.dueDate,
-            top: minutesToY(dateToMinutes(task.dueDate))
-          }]
-        : []
-
-    return [...plannedLines, ...dueLines]
-  }).map(line => ({ ...line, covered: false, markerOffset: 0 }))
+function rebuildTaskLines() {
+  const columnsByDate = new Map(visibleColumns.value.map(column => [column.date, column]))
+  const groups = new Map<string, TaskLineState[]>()
+  const eventRanges = new Map<string, { start: number, end: number }[]>()
   for (const column of visibleColumns.value) {
-    const current = lines.filter(line => line.columnKey === column.key).sort((a, b) => b.top - a.top || a.key.localeCompare(b.key))
-    const blocks = eventBlocks.value.filter(block => block.columnKey === column.key)
-    let markerTop = Infinity
-    let markerSlot = 0
-    for (const line of current) {
-      const crowded = current.some(other => other !== line && Math.abs(other.top - line.top) < 40)
-      line.covered = crowded || blocks.some(block => line.top >= block.top && line.top <= block.top + block.height)
-      if (line.covered) {
-        markerSlot = markerTop - line.top < 18 ? markerSlot + 1 : 0
-        markerTop = line.top
-        line.markerOffset = markerSlot * 18
-      }
+    groups.set(column.key, [])
+    eventRanges.set(column.key, events.value.flatMap(event => event.schedules.flatMap((schedule) => {
+      if (column.week < 1 || column.week > maxWeek || schedule.weekday !== column.weekday
+        || (Array.isArray(schedule.weeks) && !schedule.weeks.includes(column.week))) return []
+      return { start: timeToMinutes(schedule.startTime), end: timeToMinutes(schedule.endTime) }
+    })))
+  }
+
+  for (const task of tasks.value) {
+    for (const kind of ['plan', 'due'] as const) {
+      const date = kind === 'plan' ? task.plannedDate : task.dueDate
+      if (!date) continue
+      const column = columnsByDate.get(calendarDate(date, timeZone.value))
+      if (!column) continue
+      const minutes = dateToMinutes(date)
+      const insideEvent = eventRanges.get(column.key)!.some(range => minutes >= range.start && minutes <= range.end)
+      groups.get(column.key)!.push({
+        key: `${task.id}-${kind}`,
+        task,
+        kind,
+        minutes,
+        insideEvent,
+        top: ref(minutesToY(minutes)),
+        covered: ref(insideEvent),
+        markerOffset: ref(0)
+      })
     }
   }
-  return lines
-})
+  for (const lines of groups.values()) {
+    lines.sort((a, b) => b.minutes - a.minutes || a.key.localeCompare(b.key))
+  }
+  taskLines.value = groups
+  updateTaskLineCrowding()
+}
+
+function updateTaskLinePositions() {
+  const scale = displayHourPixels.value / 60
+  const origin = edgePixels.value + focus.offsetY - scheduleStartMinutes.value * scale
+  for (const lines of taskLines.value.values()) {
+    for (const line of lines) line.top.value = origin + line.minutes * scale
+  }
+  updateTaskLineCrowding()
+}
+
+function updateTaskLineCrowding() {
+  for (const lines of taskLines.value.values()) {
+    const current = displayHourPixels.value > 0
+      ? lines
+      : [...lines].sort((a, b) => b.top.value - a.top.value || a.key.localeCompare(b.key))
+    let markerTop = Infinity
+    let markerSlot = 0
+    for (const [index, line] of current.entries()) {
+      const previous = current[index - 1]
+      const next = current[index + 1]
+      const top = line.top.value
+      const crowded = (previous !== undefined && Math.abs(previous.top.value - top) < 40)
+        || (next !== undefined && Math.abs(next.top.value - top) < 40)
+      const covered = line.insideEvent || crowded
+      if (line.covered.value !== covered) line.covered.value = covered
+      if (covered) {
+        markerSlot = markerTop - top < 18 ? markerSlot + 1 : 0
+        markerTop = top
+      }
+      const offset = covered ? markerSlot * 18 : 0
+      if (line.markerOffset.value !== offset) line.markerOffset.value = offset
+    }
+  }
+}
 
 // 实时日期定位
 function getSchedulePosition(date: Date) {
@@ -562,6 +591,8 @@ const hasTodayColumn = computed(() => today.value !== null
 const currentTimeY = computed(() => currentPosition.value
   ? minutesToY(currentPosition.value.minutes)
   : null)
+watch([tasks, events, visibleColumns, timeZone], rebuildTaskLines, { immediate: true, deep: true })
+watch([displayHourPixels, scheduleStartMinutes, edgePixels, () => focus.offsetY], updateTaskLinePositions)
 const viewport = ref<HTMLElement | null>(null)
 const scheduleBody = ref<HTMLElement | null>(null)
 const scheduleHeader = ref<HTMLElement | null>(null)
@@ -752,20 +783,18 @@ onBeforeUnmount(() => backgroundObserver?.disconnect())
               @edit="editingEventId = $event"
             />
             <TaskLine
-              v-for="line in taskLines.filter(
-                line => line.columnKey === column.key
-              )"
+              v-for="line in taskLines.get(column.key)"
               :key="line.key"
-              :top="line.top"
-              :covered="line.covered"
-              :marker-offset="line.markerOffset"
+              :top="line.top.value"
+              :covered="line.covered.value"
+              :marker-offset="line.markerOffset.value"
               :kind="line.kind"
-              :task-id="line.taskId"
+              :task-id="line.task.id"
               :task="line.task"
-              :task-name="line.taskName"
-              :planned-date="line.plannedDate"
-              :due-date="line.dueDate"
-              @mouseenter="emit('task-hover', line.taskId)"
+              :task-name="line.task.title"
+              :planned-date="line.kind === 'plan' ? line.task.plannedDate ?? undefined : undefined"
+              :due-date="line.kind === 'due' ? line.task.dueDate ?? undefined : undefined"
+              @mouseenter="emit('task-hover', line.task.id)"
               @mouseleave="emit('task-hover', null)"
             />
           </div>
