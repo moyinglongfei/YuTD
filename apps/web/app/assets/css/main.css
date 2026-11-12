@@ -1,5 +1,9 @@
 /* Global customizable design tokens */
 :root {
+  --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --app-font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   --app-sidebar-width: 64px;
   --background-primary: #f5f7fb;
@@ -22,6 +26,7 @@
 
 html {
   font-family: var(--app-font-family);
+  background-color: var(--background-primary);
 }
 
 body {
@@ -54,7 +59,7 @@ samp {
 }
 
 .page-shell {
-  min-height: 100dvh;
+  min-height: var(--app-content-height, 100dvh);
   padding: var(--page-gutter);
 }
 

@@ -10,6 +10,8 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/core": "^8.6.0",
     "@elysia/eden": "^1.4.10",
     "@iconify-json/lucide": "^1.2.127",
     "@nuxt/icon": "^2.5.1",
@@ -19,6 +21,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@nuxt/eslint": "^1.17.0",
     "@types/bun": "1.4.3",
     "elysia": "^1.4.30",

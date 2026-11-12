@@ -221,12 +221,12 @@ const formattedTime = computed(() => {
   box-sizing: border-box;
 
   display: flex;
-  width: var(--app-sidebar-width);
+  width: calc(var(--app-sidebar-width) + var(--app-safe-left));
   flex-direction: column;
   align-items: center;
   gap: 16px;
 
-  padding: 12px 8px;
+  padding: calc(12px + var(--app-safe-top)) 8px calc(12px + var(--app-safe-bottom)) calc(8px + var(--app-safe-left));
 
   background-color: var(--background-secondary);
   border-right: 1px solid var(--background-primary);
@@ -399,7 +399,7 @@ const formattedTime = computed(() => {
     gap: 4px;
     width: 100%;
     height: var(--app-bottom-bar-height);
-    padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(26px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
+    padding: 6px max(8px, var(--app-safe-right)) calc(26px + var(--app-safe-bottom)) max(8px, var(--app-safe-left));
     border-right: 0;
     border-top: 1px solid var(--background-primary);
   }
@@ -445,8 +445,8 @@ const formattedTime = computed(() => {
 
   .app-sidebar-time {
     position: absolute;
-    right: max(8px, env(safe-area-inset-right, 0px));
-    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    right: max(8px, var(--app-safe-right));
+    bottom: calc(4px + var(--app-safe-bottom));
     display: flex;
     align-items: baseline;
     gap: 6px;
@@ -457,8 +457,8 @@ const formattedTime = computed(() => {
 
   .app-sidebar-add {
     position: absolute;
-    left: max(8px, env(safe-area-inset-left, 0px));
-    bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+    left: max(8px, var(--app-safe-left));
+    bottom: calc(4px + var(--app-safe-bottom));
     width: 22px;
     height: 22px;
     border-radius: 7px;

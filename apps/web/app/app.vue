@@ -136,9 +136,6 @@ const theme = computed(() => ({
   'font-family': fontStack.value === 'initial' ? 'initial' : 'var(--app-font-family)'
 }))
 useHead({
-  meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
-  ],
   htmlAttrs: {
     lang: () => preferences.value?.defaultLocale ?? 'zh-CN',
     style: () => Object.entries(theme.value).map(([key, value]) => `${key}:${value}`).join(';')
@@ -245,16 +242,19 @@ useSeoMeta({
 
 <style scoped>
 .app-layout {
-  min-height: 100vh;
+  --app-bottom-bar-height: var(--app-safe-bottom);
+  --app-content-height: calc(100dvh - var(--app-safe-top) - var(--app-bottom-bar-height));
+  min-height: 100dvh;
 }
 
 .app-main {
-  margin-left: var(--app-sidebar-width);
-  min-height: 100vh;
+  margin-left: calc(var(--app-sidebar-width) + var(--app-safe-left));
+  min-height: 100dvh;
+  padding: var(--app-safe-top) var(--app-safe-right) var(--app-bottom-bar-height) 0;
   min-width: 0;
   box-sizing: border-box;
 }
-.app-sidebar-resize { position: fixed; z-index: 60; top: 0; bottom: 0; left: calc(var(--app-sidebar-width) - 4px); width: 8px; cursor: col-resize; touch-action: none; }
+.app-sidebar-resize { position: fixed; z-index: 60; top: var(--app-safe-top); bottom: var(--app-safe-bottom); left: calc(var(--app-sidebar-width) + var(--app-safe-left) - 4px); width: 8px; cursor: col-resize; touch-action: none; }
 .app-sidebar-resize::after { content: ''; position: absolute; inset: 0 3px; background: var(--text-secondary); opacity: .25; transition: opacity 160ms ease; }
 .app-sidebar-resize:hover::after, .app-sidebar-resize:focus-visible::after, .app-layout--resizing .app-sidebar-resize::after { opacity: .8; }
 .app-sidebar-resize[aria-disabled='true'] { cursor: wait; }
@@ -262,11 +262,12 @@ useSeoMeta({
 
 @media (width < 480px) {
   .app-layout {
-    --app-bottom-bar-height: calc(max(76px, var(--app-sidebar-width)) + env(safe-area-inset-bottom, 0px));
+    --app-bottom-bar-height: calc(max(76px, var(--app-sidebar-width)) + var(--app-safe-bottom));
   }
 
   .app-main {
     margin-left: 0;
+    padding-left: var(--app-safe-left);
     padding-bottom: var(--app-bottom-bar-height);
   }
   .app-sidebar-resize { top: auto; left: 0; right: 0; bottom: calc(var(--app-bottom-bar-height) - 4px); width: auto; height: 8px; cursor: row-resize; }

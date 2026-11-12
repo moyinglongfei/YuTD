@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">YuTD</string>
+    <string name="title_activity_main">YuTD</string>
+    <string name="package_name">com.yutd.app</string>
+    <string name="custom_url_scheme">com.yutd.app</string>
+</resources>

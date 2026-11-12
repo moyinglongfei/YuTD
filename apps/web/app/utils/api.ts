@@ -1,3 +1,17 @@
+import { createNativeFetcher } from '../api/native'
+import type { NativeBridge } from '../api/native'
+import { createWebApi } from '../api/web'
+
+export function createApi(options: {
+  baseUrl: string
+  getAuthToken: () => string | null | undefined
+  native?: NativeBridge | null
+}) {
+  // undefined 使用 Web；null 表示原生初始化失败，不能退回 Web 数据源。
+  const fetcher = options.native === undefined ? undefined : createNativeFetcher(options.native)
+  return createWebApi(options.baseUrl, options.getAuthToken, fetcher)
+}
+
 export async function requestApiData<Response>(
   request: Promise<Response>,
   fallbackMessage = '请求失败'
@@ -93,8 +107,8 @@ export type ApiValue<Response> = Response extends ApiResult<infer ResponseBody>
   ? UnwrappedApiData<NonNullable<ResponseBody>>
   : UnwrappedApiData<Response>
 
-// 取得插件注入的 $api 类型，供其他文件引用接口类型。
-export type Api = ReturnType<typeof useNuxtApp>['$api']
+// 两端共用同一套接口类型，实际传输方式由 createApi 决定。
+export type Api = ReturnType<typeof createApi>
 
 // 从接口方法推导业务数据类型。例如 ApiData<Api['api']['task']['get']>。
 // 依次读取：方法的返回类型 → 等待 Promise 后的类型 → 外层 data → 业务数据。

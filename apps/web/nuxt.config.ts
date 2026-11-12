@@ -27,6 +27,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
       link: [
         {
           rel: 'icon',

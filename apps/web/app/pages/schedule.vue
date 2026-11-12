@@ -149,18 +149,18 @@ const { data: phase, pending: loading, refresh } = phaseClientState
 <style scoped>
 .schedule-page {
   width: 100%;
-  min-height: calc(100dvh - var(--app-bottom-bar-height, 0px));
+  min-height: var(--app-content-height);
   min-width: 0;
 }
 
 .schedule-page :deep(.event-schedule__background) {
-  min-height: calc(100dvh - var(--app-bottom-bar-height, 0px));
+  min-height: var(--app-content-height);
 }
 
 .schedule-edit-trigger {
   position: fixed;
   z-index: 40;
-  right: 16px;
+  right: calc(16px + var(--app-safe-right));
   bottom: calc(var(--app-bottom-bar-height, 0px) + 16px);
   gap: 8px;
   box-shadow: 0 4px 16px #0002;

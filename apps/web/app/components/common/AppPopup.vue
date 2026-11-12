@@ -64,10 +64,12 @@ function position() {
   const node = element.value
   if (!visible || !node) return
   const viewport = window.visualViewport
-  const left = (viewport?.offsetLeft ?? 0) + 12
-  const top = (viewport?.offsetTop ?? 0) + 12
-  const width = Math.max(0, (viewport?.width ?? window.innerWidth) - 24)
-  const height = Math.max(0, (viewport?.height ?? window.innerHeight) - 24)
+  const safeArea = getComputedStyle(document.documentElement)
+  const inset = (edge: string) => Number.parseFloat(safeArea.getPropertyValue(`--app-safe-${edge}`)) || 0
+  const left = (viewport?.offsetLeft ?? 0) + inset('left') + 12
+  const top = (viewport?.offsetTop ?? 0) + inset('top') + 12
+  const width = Math.max(0, (viewport?.width ?? window.innerWidth) - inset('left') - inset('right') - 24)
+  const height = Math.max(0, (viewport?.height ?? window.innerHeight) - inset('top') - inset('bottom') - 24)
   node.style.maxWidth = `${width}px`
   node.style.maxHeight = `${height}px`
   const popupWidth = node.offsetWidth

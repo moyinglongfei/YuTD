@@ -76,7 +76,7 @@ useHead({ title: '登录 · YuTD' })
 </template>
 
 <style scoped>
-.login-page { display: grid; min-height: 100dvh; place-items: center; padding: 24px; }
+.login-page { display: grid; min-height: 100dvh; place-items: center; padding: calc(24px + var(--app-safe-top)) calc(24px + var(--app-safe-right)) calc(24px + var(--app-safe-bottom)) calc(24px + var(--app-safe-left)); }
 .login-form { display: grid; gap: 16px; width: min(100%, 380px); padding: 28px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--background-secondary); }
 .login-form h1 { margin: 0; font-size: 24px; }
 .login-form label { font-size: 14px; }

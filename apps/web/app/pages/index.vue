@@ -164,7 +164,7 @@ function TaskHover(id: number | null) {
   flex-direction: column;
   gap: 7px;
   width: 100%;
-  height: 100dvh;
+  height: var(--app-content-height);
   min-width: 0;
   padding: 7px;
   overflow: hidden;
@@ -204,11 +204,5 @@ function TaskHover(id: number | null) {
 
 .home-page__tips {
   grid-area: tips;
-}
-
-@media (width < 480px) {
-  .home-page {
-    height: calc(100dvh - var(--app-bottom-bar-height));
-  }
 }
 </style>
