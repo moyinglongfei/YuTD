@@ -3,8 +3,10 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   lang: 'zh-CN',
   title: 'YuTD',
+  base: '/YuTD/',
   description: 'YuTD 项目概览与开发者文档',
   themeConfig: {
+    logo: './logo.svg',
     nav: [
       { text: '概览', link: '/overview' },
       { text: '开发者', link: '/developer/data-structure', activeMatch: '/developer/' }
