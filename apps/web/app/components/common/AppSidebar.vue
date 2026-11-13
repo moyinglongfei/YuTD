@@ -6,27 +6,11 @@ interface PhaseOption {
   label: string
   value: number
 }
-type Preferences = ApiData<Api['api']['preferences']['get']>
 const PhaseEdit = defineAsyncComponent(() => import('../edit/PhaseEdit.vue'))
 
 const { now, timeZone } = useSystemTime()
 const { mode } = useSystemStatus()
-const writePreferencesClient = useApi({
-  key: 'preferences',
-  read: api => api.api.preferences.get(),
-  write: (api, value: Preferences) => api.api.preferences.put(value)
-})
-const writePreferencesClientState = useAsyncData(writePreferencesClient.key, writePreferencesClient.read, { deep: true })
-const { data: preferences } = writePreferencesClientState
-async function writePreferences(value: Parameters<typeof writePreferencesClient.write>[0]) {
-  try {
-    const result = await writePreferencesClient.write(value)
-    await writePreferencesClientState.refresh()
-    return result
-  } catch {
-    return undefined
-  }
-}
+const { preferences, loading } = useAppPeferences()
 const phasesClient = useApi({
   key: 'phases',
   read: api => api.api.phase.get()
@@ -46,13 +30,10 @@ const phaseOptions = computed<PhaseOption[]>(() => (phases.value ?? []).map(phas
 })))
 
 const phaseSelectValue = computed({
-  get: () => preferences.value?.defaultPhaseId == null
-    ? ''
-    : String(preferences.value.defaultPhaseId),
+  get: () => preferences.value?.defaultPhaseId == null ? '' : String(preferences.value.defaultPhaseId),
 
   set: (value: string) => {
-    if (preferences.value)
-      void writePreferences({ ...preferences.value, defaultPhaseId: value === '' ? null : Number(value) })
+    if (preferences.value) preferences.value.defaultPhaseId = value === '' ? null : Number(value)
   }
 })
 
@@ -106,15 +87,27 @@ const formattedTime = computed(() => {
 </script>
 
 <template>
-  <div class="app-sidebar">
+  <div
+    class="app-sidebar"
+    :class="{ 'app-sidebar--editing': mode === 'edit' }"
+  >
     <!-- Logo -->
     <div class="app-sidebar-logo">
-      <NuxtLink to="/">
+      <NuxtLink
+        to="/"
+        class="app-sidebar-control"
+        aria-label="首页"
+      >
         <img
           class="app-sidebar-logo-image"
           src="/logo.svg"
           alt="YuTD 首页"
         >
+        <Icon
+          class="app-sidebar-icon app-sidebar-home-icon"
+          name="lucide:house"
+          aria-hidden="true"
+        />
       </NuxtLink>
     </div>
 
@@ -124,7 +117,7 @@ const formattedTime = computed(() => {
         v-model="phaseSelectValue"
         class="app-sidebar-phase-select"
         aria-label="默认阶段"
-        :disabled="!preferences || phaseOptions.length === 0"
+        :disabled="loading || !preferences || phaseOptions.length === 0"
       >
         <option
           value=""
@@ -148,9 +141,14 @@ const formattedTime = computed(() => {
         v-for="item in navigationItems"
         :key="item.to"
       >
+        <span
+          v-if="item.to === '/edit'"
+          class="app-sidebar-divider"
+          aria-hidden="true"
+        />
         <button
           v-if="item.to === '/edit'"
-          class="app-sidebar-edit-toggle"
+          class="app-sidebar-control app-sidebar-edit-toggle"
           :class="{ 'app-sidebar-edit-toggle--active': mode === 'edit' }"
           type="button"
           :title="mode === 'edit' ? '退出编辑模式' : '开启编辑模式'"
@@ -159,18 +157,19 @@ const formattedTime = computed(() => {
           @click="mode = mode === 'edit' ? 'normal' : 'edit'"
         >
           <Icon
+            class="app-sidebar-icon"
             :name="item.icon"
-            size="24"
           />
         </button>
         <NuxtLink
           v-else
+          class="app-sidebar-control"
           :to="item.to"
           :aria-label="item.label"
         >
           <Icon
+            class="app-sidebar-icon"
             :name="item.icon"
-            size="24"
           />
         </NuxtLink>
       </template>
@@ -186,7 +185,7 @@ const formattedTime = computed(() => {
     <button
       v-if="mode === 'edit'"
       ref="addAnchor"
-      class="app-sidebar-add"
+      class="app-sidebar-control app-sidebar-add"
       type="button"
       title="新建阶段、课程或任务"
       aria-label="新建阶段、课程或任务"
@@ -194,8 +193,8 @@ const formattedTime = computed(() => {
       @click="createMenuOpen = !createMenuOpen"
     >
       <Icon
+        class="app-sidebar-icon"
         name="lucide:plus"
-        size="22"
         aria-hidden="true"
       />
     </button>
@@ -213,6 +212,11 @@ const formattedTime = computed(() => {
 
 <style scoped>
 .app-sidebar {
+  --sidebar-item-size: var(--app-sidebar-width) ;
+  --sidebar-icon-size: calc(var(--sidebar-item-size) - 45px);
+  --sidebar-control-width: var(--app-sidebar-width);
+  --sidebar-control-height: var(--sidebar-item-size);
+
   position: fixed;
   z-index: 50;
   top: 0;
@@ -224,9 +228,9 @@ const formattedTime = computed(() => {
   width: calc(var(--app-sidebar-width) + var(--app-safe-left));
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 0;
 
-  padding: calc(12px + var(--app-safe-top)) 8px calc(12px + var(--app-safe-bottom)) calc(8px + var(--app-safe-left));
+  padding: var(--app-safe-top) 0 var(--app-safe-bottom) var(--app-safe-left);
 
   background-color: var(--background-secondary);
   border-right: 1px solid var(--background-primary);
@@ -235,7 +239,7 @@ const formattedTime = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 0;
 
   width: 100%;
 }
@@ -245,30 +249,20 @@ const formattedTime = computed(() => {
   align-items: center;
   justify-content: center;
 
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: var(--sidebar-item-size);
   flex-shrink: 0;
 
   border-radius: 12px;
   color: var(--text-secondary);
   text-decoration: none;
 
-  transition:
-    color 160ms ease,
-    background-color 160ms ease,
-    transform 160ms ease;
+  transition: color 160ms ease;
 }
 
 .app-sidebar-navigation a:hover,
 .app-sidebar-edit-toggle:hover {
   color: var(--text-primary);
-  background-color: var(--background-primary);
-}
-
-.app-sidebar-navigation a.router-link-active,
-.app-sidebar-edit-toggle--active {
-  color: var(--text-primary);
-  background-color: var(--background-primary);
 }
 
 .app-sidebar-navigation a:focus-visible,
@@ -277,28 +271,27 @@ const formattedTime = computed(() => {
   outline-offset: 2px;
 }
 .app-sidebar-edit-toggle { padding: 0; border: 0; cursor: pointer; background: transparent; }
-.app-sidebar-edit-toggle--active { color: var(--accent-color, var(--text-primary)); background: var(--background-primary); animation: sidebar-edit-glow 1.6s ease-in-out infinite; }
-.app-sidebar-add { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: var(--background-primary); color: var(--accent-color, var(--text-primary)); cursor: pointer; }
-.app-sidebar-add:hover { background: color-mix(in srgb, currentColor 12%, var(--background-primary)); }
+.app-sidebar-divider { display: none; }
+.app-sidebar-icon {
+  width: min(var(--sidebar-icon-size), calc(var(--sidebar-control-width) * 0.7 - 4px), calc(var(--sidebar-control-height) * 0.4 - 4px));
+  height: min(var(--sidebar-icon-size), calc(var(--sidebar-control-width) * 0.7 - 4px), calc(var(--sidebar-control-height) * 0.4 - 4px));
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.app-sidebar-home-icon { display: none; }
+.app-sidebar-add { display: grid; place-items: center; flex-shrink: 0; width: 100%; height: var(--sidebar-item-size); padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: color 160ms ease; }
+.app-sidebar-add:hover { color: var(--text-primary); }
 .app-sidebar-add:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-@keyframes sidebar-edit-glow {
-  0%, 100% { box-shadow: 0 0 2px color-mix(in srgb, currentColor 15%, transparent); }
-  50% { box-shadow: 0 0 16px color-mix(in srgb, currentColor 65%, transparent), inset 0 0 8px color-mix(in srgb, currentColor 18%, transparent); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .app-sidebar-edit-toggle--active { animation: none; box-shadow: 0 0 10px color-mix(in srgb, currentColor 45%, transparent); }
-}
 .app-sidebar-logo {
   display: flex;
   align-items: center;
   justify-content: center;
 
-  width: 48px;
-  height: 48px;
+  width: 100%;
+  height: var(--sidebar-item-size);
   flex-shrink: 0;
 
   border-radius: 14px;
-  transition: background-color 160ms ease;
 }
 
 .app-sidebar-logo a {
@@ -308,18 +301,62 @@ const formattedTime = computed(() => {
 
   width: 100%;
   height: 100%;
+  color: var(--text-secondary);
+  transition: color 160ms ease;
 }
 
 .app-sidebar-logo-image {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: calc(var(--sidebar-icon-size) + 6px);
+  height: calc(var(--sidebar-icon-size) + 6px);
   object-fit: contain;
 }
 
-.app-sidebar-logo:hover {
-  background-color: var(--background-primary);
+.app-sidebar-control {
+  position: relative;
+  isolation: isolate;
 }
+
+.app-sidebar-control::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: 30%;
+  left: 15%;
+  width: 70%;
+  height: 40%;
+  border-radius: 999px;
+  background-color: var(--text-primary);
+  opacity: 0;
+  transform: scaleX(0);
+  pointer-events: none;
+}
+
+.app-sidebar-control:is(.router-link-active, .app-sidebar-edit-toggle--active, [aria-expanded='true']) {
+  color: var(--background-secondary);
+}
+
+.app-sidebar-control:is(.router-link-active, .app-sidebar-edit-toggle--active, [aria-expanded='true'])::before {
+  opacity: 1;
+  transform: scaleX(1);
+  animation: sidebar-activate 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-sidebar-control:is(.router-link-active, .app-sidebar-edit-toggle--active, [aria-expanded='true']) .app-sidebar-icon {
+  color: var(--background-secondary);
+}
+
+@keyframes sidebar-activate {
+  from { opacity: 0; transform: scaleX(0.25); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar-control:is(.router-link-active, .app-sidebar-edit-toggle--active, [aria-expanded='true'])::before {
+    animation: none;
+  }
+}
+
 .app-sidebar-phase {
   display: flex;
   justify-content: center;
@@ -390,16 +427,20 @@ const formattedTime = computed(() => {
 
 @media (width < 480px) {
   .app-sidebar {
+    --sidebar-cell-width: calc((100vw - var(--app-safe-left) - var(--app-safe-right) - 1px) / 4);
+    --sidebar-item-size: min(calc(var(--app-bottom-bar-height) - var(--app-safe-bottom)), var(--sidebar-cell-width));
+    --sidebar-icon-size: calc(var(--sidebar-item-size) - 36px);
+    --sidebar-control-width: var(--sidebar-cell-width);
+    --sidebar-control-height: calc(var(--app-bottom-bar-height) - var(--app-safe-bottom) - 1px);
+
     top: auto;
     right: 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) 36px clamp(64px, 22vw, 106px) repeat(2, minmax(0, 1fr));
-    grid-template-rows: 44px;
-    align-content: start;
-    gap: 4px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 1px minmax(0, 0.7fr) minmax(0, 0.3fr);
+    grid-template-rows: minmax(0, 1fr);
     width: 100%;
     height: var(--app-bottom-bar-height);
-    padding: 6px max(8px, var(--app-safe-right)) calc(26px + var(--app-safe-bottom)) max(8px, var(--app-safe-left));
+    padding: 0 var(--app-safe-right) var(--app-safe-bottom) var(--app-safe-left);
     border-right: 0;
     border-top: 1px solid var(--background-primary);
   }
@@ -408,60 +449,61 @@ const formattedTime = computed(() => {
     display: contents;
   }
 
-  .app-sidebar-navigation a,
-  .app-sidebar-edit-toggle {
-    grid-row: 1;
-    justify-self: center;
-    width: 100%;
-    max-width: 44px;
-    min-width: 0;
-  }
-
-  .app-sidebar-navigation > :nth-child(1) { grid-column: 1; }
-  .app-sidebar-navigation > :nth-child(2) { grid-column: 2; }
-  .app-sidebar-navigation > :nth-child(3) { grid-column: 5; }
-  .app-sidebar-navigation > :nth-child(4) { grid-column: 6; }
-
-  .app-sidebar-logo {
-    grid-area: 1 / 3;
-    width: 36px;
-    height: 44px;
+  .app-sidebar-home-icon {
+    display: inline-block;
   }
 
   .app-sidebar-logo-image {
-    width: 30px;
-    height: 30px;
+    display: none;
   }
 
-  .app-sidebar-phase {
-    grid-area: 1 / 4;
+  .app-sidebar-navigation a,
+  .app-sidebar-edit-toggle,
+  .app-sidebar-logo,
+  .app-sidebar-add {
+    width: 100%;
+    height: 100%;
     min-width: 0;
+    min-height: 0;
   }
 
-  .app-sidebar-phase-select {
-    min-width: 0;
-    text-overflow: ellipsis;
+  .app-sidebar-divider {
+    display: block;
+    order: 1;
+    width: 1px;
+    height: 50%;
+    align-self: center;
+    flex-shrink: 0;
+    background-color: var(--text-primary);
   }
 
-  .app-sidebar-time {
-    position: absolute;
-    right: max(8px, var(--app-safe-right));
-    bottom: calc(4px + var(--app-safe-bottom));
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    width: auto;
-    margin: 0;
-    white-space: nowrap;
+  .app-sidebar-edit-toggle {
+    order: 2;
+    grid-column: 5 / 7;
+    grid-row: 1;
+  }
+
+  .app-sidebar--editing .app-sidebar-edit-toggle,
+  .app-sidebar-add {
+    --sidebar-icon-size: min(calc(var(--sidebar-item-size) - 36px), calc(var(--sidebar-control-width) - 12px));
+  }
+
+  .app-sidebar--editing .app-sidebar-edit-toggle {
+    --sidebar-control-width: calc(var(--sidebar-cell-width) * 0.7);
+    grid-column: 5;
   }
 
   .app-sidebar-add {
-    position: absolute;
-    left: max(8px, var(--app-safe-left));
-    bottom: calc(4px + var(--app-safe-bottom));
-    width: 22px;
-    height: 22px;
-    border-radius: 7px;
+    --sidebar-control-width: calc(var(--sidebar-cell-width) * 0.3);
+    order: 3;
+    grid-column: 6;
+    grid-row: 1;
+  }
+
+  .app-sidebar-phase,
+  .app-sidebar-time,
+  .app-sidebar-navigation a[href="/resources"] {
+    display: none;
   }
 
   .app-sidebar :deep(.app-errors) {

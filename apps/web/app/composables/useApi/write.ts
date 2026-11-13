@@ -6,9 +6,11 @@ export async function writeApi<Data, Response>(
   api: Api,
   request: ((api: Api, data: Data) => Promise<Response>) | undefined,
   data: Data,
-  reportError: ReturnType<typeof useAppErrors>['reportError']
+  reportError: ReturnType<typeof useAppErrors>['reportError'],
+  pending: Ref<number>
 ): Promise<ApiValue<Response>> {
   try {
+    pending.value++
     if (!request) {
       throw new Error('未配置写入方法')
     }
@@ -16,5 +18,7 @@ export async function writeApi<Data, Response>(
   } catch (error) {
     reportError(error, '写入失败')
     throw error
+  } finally {
+    pending.value--
   }
 }

@@ -28,16 +28,19 @@ export async function readApi<Response>(
   request: ((api: Api) => Promise<Response>) | undefined,
   reportError: ReturnType<typeof useAppErrors>['reportError'],
   key: Readonly<Ref<string>>,
-  cache: Ref<Record<string, ApiReadCache>>
+  cache: Ref<Record<string, ApiReadCache>>,
+  pending: Ref<number>,
+  force = false
 ): Promise<ApiValue<Response>> {
   try {
+    pending.value++
     if (!request) throw new Error('未配置读取方法')
     // 先查版本，再读取当前 key，确保动态 key 与随后发出的请求一致。
     const { version } = await getVersion(api)
     const cacheKey = key.value
     const cached = cache.value[cacheKey]
 
-    if (cached && cached.version === version) {
+    if (!force && cached && cached.version === version) {
       return cached.data as ApiValue<Response>
     }
 
@@ -48,5 +51,7 @@ export async function readApi<Response>(
   } catch (error) {
     if (!(error instanceof Error && error.name === 'AbortError')) reportError(error, '读取失败')
     throw error
+  } finally {
+    pending.value--
   }
 }

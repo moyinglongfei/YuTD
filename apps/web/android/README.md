@@ -82,7 +82,9 @@ AuthService::class to false,
 
 ## 数据和升级
 
-数据库位于应用私有目录的 `databases/yutd.db`。Room 当前结构版本为 2，通过 `@AutoMigration(from = 1, to = 2)` 保留已有设置和样式，结构记录保存在 `app/schemas`。按业务目录拆分没有改变表、字段、索引或数据库标识，因此无需再增加版本号。不使用清库升级。旧版样式没有时间字段，升级时为资源排序补入固定的历史基准时间。
+数据库位于应用私有目录的 `databases/yutd.db`，Room 当前版本为 3，结构记录保存在 `app/schemas`。1→2 使用自动迁移，为旧版样式补入资源排序所需的历史基准时间；2→3 使用数据迁移，补齐六套默认样式，将侧栏宽度恢复到最小的 64px，并更新数据版本。不使用清库升级，同名样式与当前启用的样式保持不变。
+
+默认样式来自 `shared/assets/style-presets.json`，由 Android Gradle 作为 assets 打包，后端新库初始化也读取同一份数据。新装应用在建表后写入海盐晴空、紫藤纸笺、拿铁时光、抹茶庭院、冬夜霜蓝、莓紫夜航六套预设，保留各自的颜色、字体与显示模式。
 
 图片存放在 `files/images`，上传时通过 256 KiB 分片进入 `cache/image-uploads`，校验完整性、格式、大小和像素后保存；失败和取消会清理临时文件。每个文件最多 20 MiB，图片最多 8000 万像素，简化图必须是 PNG。AVIF 解码能力取决于 Android 版本。图片读取通过 Capacitor 本地文件 URL 返回 Blob，不将整张文件编码后放进一次桥接响应。
 
@@ -116,3 +118,14 @@ bunx cap sync android
 ## 全面屏
 
 前端 viewport 使用 `viewport-fit=cover`，Capacitor 自带的 `SystemBars` 处理系统栏安全区，页面通过 `--app-safe-*` 避让。状态栏和导航栏保持可见。Android WebView 140 以下自动使用原生安全区兼容布局。
+
+## 系统返回
+
+Android 通过 `@capacitor/app` 的 `backButton` 事件统一处理系统返回键和返回手势，优先级如下：
+
+1. 关闭最上层弹窗；若弹窗不可关闭，则消费本次返回。
+2. 退出编辑模式。
+3. 非首页且有应用内历史记录时返回上一页，否则回到首页。
+4. 首页将应用退到后台，保留当前状态。
+
+监听在 `native.client.ts` 中注册，Vue 应用实例销毁或开发热更新时清理。浏览器不注册原生返回监听。安装或更新插件后，需重新执行 `bunx cap sync android` 并打包安装。

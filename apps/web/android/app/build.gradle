@@ -13,6 +13,7 @@ kotlin {
 }
 
 android {
+    sourceSets.main.assets.srcDir("../../../../shared/assets")
     compileOptions {
         coreLibraryDesugaringEnabled true
     }

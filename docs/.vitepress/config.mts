@@ -27,6 +27,7 @@ export default defineConfig({
             text: 'Web',
             items: [
               { text: '前端 · Vue / Nuxt', link: '/developer/web/frontend' },
+              { text: '页面格式规范', link: '/developer/web/page-format' },
               { text: '后端 · Bun / Elysia', link: '/developer/web/backend' }
             ]
           },

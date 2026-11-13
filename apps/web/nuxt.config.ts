@@ -85,6 +85,9 @@ export default defineNuxtConfig({
     provider: 'none',
     serverBundle: false,
     fallbackToApi: false,
-    clientBundle: { scan: { globInclude: ['app/**/*.{vue,ts}'] } }
+    clientBundle: {
+      icons: ['lucide:house'],
+      scan: { globInclude: ['app/**/*.{vue,ts}'] }
+    }
   }
 })

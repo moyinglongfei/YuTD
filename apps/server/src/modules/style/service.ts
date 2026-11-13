@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from 'elysia-http-exception'
 import { prisma } from '#backend/lib/prisma'
+import stylePresets from '#shared/assets/style-presets.json'
 import type { StyleModelType } from './model'
 
 function toStyle(record: Awaited<ReturnType<typeof prisma.style.findFirstOrThrow>>) {
@@ -19,8 +20,14 @@ function normalize(data: StyleModelType['update']) {
 }
 export abstract class StyleService {
   static async ensureStyle() {
-    return await prisma.style.findFirst({ orderBy: { id: 'asc' } })
-      ?? prisma.style.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} })
+    const current = await prisma.style.findFirst({ orderBy: { id: 'asc' } })
+    if (current) return current
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.style.findFirst({ orderBy: { id: 'asc' } })
+      if (existing) return existing
+      await tx.style.createMany({ data: stylePresets })
+      return tx.style.findFirstOrThrow({ orderBy: { id: 'asc' } })
+    })
   }
   static async list() {
     await this.ensureStyle()

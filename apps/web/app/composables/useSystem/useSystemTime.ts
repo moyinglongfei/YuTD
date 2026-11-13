@@ -1,13 +1,8 @@
 export function useSystemTime() {
-  const preferencesClient = useApi({
-    key: () => 'preferences',
-    read: api => api.api.preferences.get()
-  })
-
-  const preferences = preferencesClient.data
+  const { preferences } = useAppPeferences()
   const timeZone = computed(() => preferences.value?.timeZone ?? 'UTC')
   const timestamp = useState<number | null>(
-    'system-time',
+    'system-status:time',
     () => null
   )
 

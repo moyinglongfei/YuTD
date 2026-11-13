@@ -6,26 +6,18 @@ import { requestApiData } from '~/utils/api'
 type StyleData = ApiData<Api['api']['style']['get']>[number]
 
 const { reportError } = useAppErrors()
-const writePreferencesClient = useApi({
-  key: 'preferences',
-  read: api => api.api.preferences.get(),
-  write: (api, value: ApiData<Api['api']['preferences']['get']>) => api.api.preferences.put(value)
+const { preferences, loading: preferencesLoading, saving: savingPreferences } = useAppPeferences()
+const phasesClient = useApi({
+  key: 'phases',
+  read: api => api.api.phase.get()
 })
-const writePreferencesClientState = useAsyncData(writePreferencesClient.key, writePreferencesClient.read, { deep: true })
-const { data: preferences } = writePreferencesClientState
-const savingPreferences = ref(false)
-async function writePreferences(value: Parameters<typeof writePreferencesClient.write>[0]) {
-  savingPreferences.value = true
-  try {
-    const result = await writePreferencesClient.write(value)
-    await writePreferencesClientState.refresh()
-    return result
-  } catch {
-    return undefined
-  } finally {
-    savingPreferences.value = false
+const { data: phases, pending: phasesLoading } = useAsyncData(phasesClient.key, phasesClient.read, { deep: true })
+const phaseSelectValue = computed({
+  get: () => preferences.value?.defaultPhaseId == null ? '' : String(preferences.value.defaultPhaseId),
+  set: (value: string) => {
+    if (preferences.value) preferences.value.defaultPhaseId = value === '' ? null : Number(value)
   }
-}
+})
 const styleId = computed(() => preferences.value?.activeStyleId ?? null)
 const writeStyleClient = useApi({
   key: () => `style:${styleId.value ?? 'none'}`,
@@ -152,7 +144,7 @@ const activeStyleId = computed({
   get: () => preferences.value?.activeStyleId ?? '',
   set: (value: string | number) => {
     if (preferences.value && value !== '')
-      void writePreferences({ ...preferences.value, activeStyleId: Number(value) })
+      preferences.value.activeStyleId = Number(value)
   }
 })
 const timeZoneDraft = ref('')
@@ -166,15 +158,10 @@ function saveTimeZone() {
     return
   try {
     const timeZone = normalizeTimeZone(timeZoneDraft.value.trim())
-    void writePreferences({ ...preferences.value, timeZone, timeZoneAutomatic: false })
+    Object.assign(preferences.value, { timeZone, timeZoneAutomatic: false })
   } catch {
     reportError('请输入有效的 IANA 时区，例如 Asia/Shanghai。', '保存时区失败')
   }
-}
-
-function saveAutomaticTimeZone() {
-  if (preferences.value)
-    void writePreferences({ ...preferences.value })
 }
 
 function saveDefaultLocale() {
@@ -185,7 +172,7 @@ function saveDefaultLocale() {
     reportError('语言不能为空。', '保存语言失败')
     return
   }
-  void writePreferences({ ...preferences.value, defaultLocale })
+  preferences.value.defaultLocale = defaultLocale
 }
 
 function validatedDraft(name = draft.value?.name) {
@@ -229,7 +216,7 @@ async function saveAsPreset() {
   const { id: _id, ...fields } = value
   createdStyleId = null
   if (await createStyle(fields) && createdStyleId !== null) {
-    await writePreferences({ ...preferences.value, activeStyleId: createdStyleId })
+    preferences.value.activeStyleId = createdStyleId
     presetName.value = ''
   }
 }
@@ -253,7 +240,7 @@ function saveSidebarWidth() {
   if (!preferences.value)
     return
   const width = Math.round(Number(preferences.value.sidebarWidth))
-  void writePreferences({ ...preferences.value, sidebarWidth: Math.min(135, Math.max(64, Number.isFinite(width) ? width : 64)) })
+  preferences.value.sidebarWidth = Math.min(135, Math.max(64, Number.isFinite(width) ? width : 64))
 }
 </script>
 
@@ -261,6 +248,28 @@ function saveSidebarWidth() {
   <main class="page-shell">
     <div class="page-container">
       <div class="page-grid settings-grid">
+        <PageCard class="settings-phase">
+          <label class="form-field">
+            <span>当前阶段 · Phase</span>
+            <select
+              v-model="phaseSelectValue"
+              class="form-control"
+              :disabled="preferencesLoading || phasesLoading || !preferences || !phases?.length"
+            >
+              <option value="">
+                {{ phasesLoading ? '正在加载阶段……' : phases?.length ? '未选择阶段' : '暂无阶段' }}
+              </option>
+              <option
+                v-for="phase in phases ?? []"
+                :key="phase.id"
+                :value="String(phase.id)"
+              >
+                {{ phase.name }}
+              </option>
+            </select>
+            <small class="field-help">选择后自动保存为默认阶段，首页与课程表同步切换。</small>
+          </label>
+        </PageCard>
         <PageCard>
           <header class="content-heading">
             <h2 class="panel-title">
@@ -518,7 +527,6 @@ function saveSidebarWidth() {
                   <span><input
                     v-model="preferences.timeZoneAutomatic"
                     type="checkbox"
-                    @change="saveAutomaticTimeZone"
                   > 自动识别时区</span>
                   <small class="field-help">优先采用浏览器时区，语言地区用于兜底；各端统一使用后端保存的时区。</small>
                 </label>
@@ -558,7 +566,7 @@ function saveSidebarWidth() {
                   >
                 </label>
                 <p class="field-help">
-                  侧栏选择的阶段会自动成为默认阶段；切换到编辑模式后，可在课程表页点击「调整课程表」设置缩放与间距。
+                  选择的阶段会自动保存为默认阶段；切换到编辑模式后，可在课程表页点击「调整课程表」设置缩放与间距。
                 </p>
               </template>
               <p
@@ -579,6 +587,7 @@ function saveSidebarWidth() {
 
 <style scoped>
 .settings-grid { align-items: start; }
+.settings-phase { display: none; }
 .settings-colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .settings-color { display: flex; gap: 12px; align-items: center; font-size: 14px; }
 .settings-color input { width: 44px; height: 44px; padding: 3px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--background-secondary); cursor: pointer; }
@@ -596,4 +605,5 @@ function saveSidebarWidth() {
 .settings-font-option:disabled { cursor: wait; opacity: .5; }
 input[type='range'] { width: 100%; accent-color: var(--text-primary); }
 @media (max-width: 500px) { .settings-colors { grid-template-columns: 1fr; } }
+@media (width < 480px) { .settings-phase { display: block; grid-column: 1 / -1; } }
 </style>

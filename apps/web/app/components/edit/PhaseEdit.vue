@@ -2,7 +2,6 @@
 import { defineAsyncComponent } from 'vue'
 import AppPopup from '../common/AppPopup.vue'
 
-type Preferences = ApiData<Api['api']['preferences']['get']>
 type Phase = ApiData<Api['api']['phase']['get']>[number]
 const props = defineProps<{ anchor?: HTMLElement | null, phaseId?: number | null }>()
 const createMenuOpen = defineModel<boolean>('open', { default: false })
@@ -12,22 +11,7 @@ const TaskEditPopup = defineAsyncComponent(() => import('./TaskEditPopup.vue'))
 const app = useNuxtApp()
 const { now, timeZone } = useSystemTime()
 const { mode } = useSystemStatus()
-const writePreferencesClient = useApi({
-  key: 'preferences',
-  read: api => api.api.preferences.get(),
-  write: (api, value: Preferences) => api.api.preferences.put(value)
-})
-const writePreferencesClientState = useAsyncData(writePreferencesClient.key, writePreferencesClient.read, { deep: true })
-const { data: preferences } = writePreferencesClientState
-async function writePreferences(value: Parameters<typeof writePreferencesClient.write>[0]) {
-  try {
-    const result = await writePreferencesClient.write(value)
-    await writePreferencesClientState.refresh()
-    return result
-  } catch {
-    return undefined
-  }
-}
+const { preferences } = useAppPeferences()
 const phasesClient = useApi({
   key: 'phases',
   read: api => api.api.phase.get()
@@ -38,8 +22,8 @@ const { data: phases } = phasesClientState
 const creating = ref<'phase' | 'event' | 'task' | null>(null)
 const creationPhase = shallowRef<Phase | null>(null)
 const selectedCreationPhase = computed(() => {
-  const phaseId = props.phaseId === undefined ? preferences.value?.defaultPhaseId : props.phaseId
-  return phases.value?.find(phase => phase.id === phaseId)
+  const selectedPhaseId = props.phaseId === undefined ? preferences.value?.defaultPhaseId : props.phaseId
+  return phases.value?.find(phase => phase.id === selectedPhaseId)
 })
 const creationDate = ref('')
 function create(type: 'phase' | 'event' | 'task') {
@@ -59,8 +43,7 @@ async function phaseSaved(phase: ApiData<Api['api']['phase']['post']>) {
   phases.value = [...(phases.value ?? []).filter(value => value.id !== phase.id), {
     ...phase, _count: previous?._count ?? { events: 0, tasks: 0 }
   }].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-  if (!preferences.value) await writePreferencesClientState.refresh()
-  if (preferences.value) await writePreferences({ ...preferences.value, defaultPhaseId: phase.id })
+  if (preferences.value) preferences.value.defaultPhaseId = phase.id
   await phasesClientState.refresh()
 }
 async function contentSaved() {

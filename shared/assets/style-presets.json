@@ -1,0 +1,56 @@
+[
+  {
+    "name": "海盐晴空",
+    "showMode": 1,
+    "backgroundPrimary": "#EAF7FF",
+    "backgroundSecondary": "#FFFFFF",
+    "textPrimary": "#001F3F",
+    "textSecondary": "#0065BD",
+    "fontFamily": "Consolas"
+  },
+  {
+    "name": "紫藤纸笺",
+    "showMode": 1,
+    "backgroundPrimary": "#EDE9FE",
+    "backgroundSecondary": "#FFFFFF",
+    "textPrimary": "#17020E",
+    "textSecondary": "#5B21B6",
+    "fontFamily": "Consolas"
+  },
+  {
+    "name": "拿铁时光",
+    "showMode": 0,
+    "backgroundPrimary": "#FFF3E0",
+    "backgroundSecondary": "#FFFFFF",
+    "textPrimary": "#3E2723",
+    "textSecondary": "#8C4A20",
+    "fontFamily": "LXGW WenKai Mono"
+  },
+  {
+    "name": "抹茶庭院",
+    "showMode": 1,
+    "backgroundPrimary": "#F5F5DC",
+    "backgroundSecondary": "#FFFFFF",
+    "textPrimary": "#166534",
+    "textSecondary": "#3F744F",
+    "fontFamily": "Consolas"
+  },
+  {
+    "name": "冬夜霜蓝",
+    "showMode": 0,
+    "backgroundPrimary": "#0B1026",
+    "backgroundSecondary": "#17223A",
+    "textPrimary": "#FFFFFF",
+    "textSecondary": "#89CFF0",
+    "fontFamily": "LXGW WenKai Mono"
+  },
+  {
+    "name": "莓紫夜航",
+    "showMode": 0,
+    "backgroundPrimary": "#282A36",
+    "backgroundSecondary": "#353747",
+    "textPrimary": "#F8F8F2",
+    "textSecondary": "#FF79C6",
+    "fontFamily": "LXGW WenKai Mono"
+  }
+]

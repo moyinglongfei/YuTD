@@ -2,10 +2,18 @@
 interface PopupEntry {
   element: HTMLElement
   close: (restoreFocus?: boolean) => void
+  requestClose: () => void
 }
 
 const popupStack: PopupEntry[] = []
 const scrollLocks = new WeakMap<Document, { count: number, overflow: string, gutter: string }>()
+
+export function handlePopupBack() {
+  const popup = popupStack.at(-1)
+  if (!popup) return false
+  popup.requestClose()
+  return true
+}
 
 function lockScroll(document: Document) {
   const style = document.documentElement.style
@@ -199,7 +207,7 @@ async function syncOpen() {
   const node = element.value
   if (current !== revision || !opened.value || !node?.isConnected) return
   previousFocus = props.anchor ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
-  entry = { element: node, close }
+  entry = { element: node, close, requestClose }
   popupStack.push(entry)
   visible = true
   try {

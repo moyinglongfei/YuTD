@@ -7,6 +7,8 @@ type Preferences = ApiData<Api['api']['preferences']['get']>
 type ScheduleSettings = Pick<Preferences, 'maxFocusScale' | 'focusColumnScale' | 'hourPixels' | 'edgePixels'>
 
 const { mode } = useSystemStatus()
+const { preferences, loading: preferencesLoading } = useAppPeferences()
+const selectedPhaseId = computed(() => preferences.value?.defaultPhaseId ?? null)
 const editOpen = ref(false)
 const editAnchor = ref<HTMLElement | null>(null)
 const preview = ref<EditValues | null>(null)
@@ -17,13 +19,6 @@ const editFields: EditField[] = [
   { key: 'edgePixels', label: '上下留白（px）', type: 'integer', defaultValue: 20, min: 0, max: 100, step: 1 }
 ]
 
-const preferencesClient = useApi({
-  key: 'preferences',
-  read: api => api.api.preferences.get(),
-  write: (api, value: ScheduleSettings) => api.api.preferences.patch(value)
-})
-const preferencesState = useAsyncData(preferencesClient.key, preferencesClient.read, { deep: true })
-const { data: preferences } = preferencesState
 const { data: phases } = useNuxtData<ApiData<Api['api']['phase']['get']>>('phases')
 const savedSettings = computed<ScheduleSettings>(() => ({
   maxFocusScale: preferences.value?.maxFocusScale ?? 2,
@@ -40,9 +35,8 @@ function toSettings(values: EditValues): ScheduleSettings {
   }
 }
 const tableSettings = computed(() => toSettings(preview.value ?? savedSettings.value))
-async function saveSettings(values: EditValues) {
-  preferences.value = await preferencesClient.write(toSettings(values))
-  await preferencesState.refresh()
+function saveSettings(values: EditValues) {
+  if (preferences.value) Object.assign(preferences.value, toSettings(values))
 }
 watch(mode, (value) => {
   if (value !== 'edit') editOpen.value = false
@@ -50,8 +44,6 @@ watch(mode, (value) => {
 watch(editOpen, (open) => {
   if (!open) preview.value = null
 }, { flush: 'sync' })
-const selectedPhaseId = computed(() => preferences.value?.defaultPhaseId ?? null)
-
 const phaseClient = useApi({
   key: () => `phase:${selectedPhaseId.value ?? 'none'}`,
   read: async api => selectedPhaseId.value === null
@@ -59,13 +51,14 @@ const phaseClient = useApi({
     : api.api.phase({ id: selectedPhaseId.value }).get()
 })
 const phaseClientState = useAsyncData(phaseClient.key, phaseClient.read, { deep: true })
-const { data: phase, pending: loading, refresh } = phaseClientState
+const { data: phase, refresh } = phaseClientState
+const loading = computed(() => preferencesLoading.value || phaseClientState.pending.value)
 </script>
 
 <template>
   <main class="schedule-page">
     <p
-      v-if="loading && !phase && selectedPhaseId !== null"
+      v-if="loading && !phase"
       class="page-state"
       role="status"
     >
@@ -104,7 +97,7 @@ const { data: phase, pending: loading, refresh } = phaseClientState
       :key="phase.id"
       :phase-id="phase.id"
       v-bind="tableSettings"
-      mode="easy"
+      mode="full"
     />
     <div
       v-else

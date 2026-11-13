@@ -15,6 +15,7 @@ export function useApi<ReadResponse, WriteData = void, WriteResponse = unknown>(
   key: string | (() => string) // useState 缓存 key
   read?: (api: Api) => Promise<ReadResponse> // 读取函数
   write?: (api: Api, data: WriteData) => Promise<WriteResponse> // 写入函数
+  watch?: boolean // 首次及 key 改变时自动读取
 }) {
   const { $api } = useNuxtApp()
   const { reportError } = useAppErrors()
@@ -22,10 +23,24 @@ export function useApi<ReadResponse, WriteData = void, WriteResponse = unknown>(
   const cache = useState<Record<string, ApiReadCache>>('api:read-cache', () => ({}))
   const data = computed(() => cache.value[key.value]?.data as ApiValue<ReadResponse> | undefined)
 
+  const readPending = ref(0)
+  const read = Object.assign(() => readApi($api, options.read, reportError, key, cache, readPending), {
+    loading: computed(() => readPending.value > 0),
+    refresh: () => readApi($api, options.read, reportError, key, cache, readPending, true)
+  })
+  if (options.watch && options.read) {
+    watch(key, () => read().catch(() => {}), { immediate: true })
+  }
+
+  const writePending = ref(0)
+  const write = Object.assign((data: WriteData) => writeApi($api, options.write, data, reportError, writePending), {
+    saving: computed(() => writePending.value > 0)
+  })
+
   return {
     key,
     data,
-    read: () => readApi($api, options.read, reportError, key, cache),
-    write: (data: WriteData) => writeApi($api, options.write, data, reportError)
+    read,
+    write
   }
 }

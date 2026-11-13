@@ -1,46 +1,34 @@
 <script setup lang="ts">
+// 导入
 import TaskAttentionList from '~/components/preview/Task/TaskAttentionList.vue'
 import { useApi } from '~/composables/useApi'
 
-const preferencesClient = useApi({
-  key: 'preferences',
-  read: api => api.api.preferences.get(),
-  write: (api, value: ApiData<Api['api']['preferences']['get']>) => api.api.preferences.put(value)
-})
-const preferencesClientState = useAsyncData(preferencesClient.key, preferencesClient.read, { deep: true })
-const { data: preferences } = preferencesClientState
-const { data: phases } = useNuxtData<ApiData<Api['api']['phase']['get']>>('phases')
-
-const selectedPhaseId = computed(() => preferences.value?.defaultPhaseId ?? null)
+// 系统变量读取
 const { now, timeZone } = useSystemTime()
+const { preferences, loading: preferencesLoading } = useAppPeferences()
+
+// API 读取
+const phaseClient = useApi({
+  key: () => `phase:${preferences.value?.defaultPhaseId ?? 'none'}`,
+  watch: true,
+  read: async (api) => {
+    const phaseId = preferences.value?.defaultPhaseId
+    if (!phaseId) return null
+    return api.api.phase({ id: phaseId }).get()
+  }
+})
+
+// 页面变量：响应式数据
+const { data: phases } = useNuxtData<ApiData<Api['api']['phase']['get']>>('phases')
+const { data: phase } = phaseClient
+
+// 计算属性
+const selectedPhaseId = computed(() => preferences.value?.defaultPhaseId ?? null)
+const loading = computed(() => preferencesLoading.value || phaseClient.read.loading.value)
 const displayedDay = computed(() => now.value ? calendarDate(now.value, timeZone.value) : null)
 const displayedWeekdays = computed(() => displayedDay.value
   ? [calendarWeekday(displayedDay.value), calendarWeekday(addCalendarDays(displayedDay.value, 1))]
   : [])
-
-const phaseClient = useApi({
-  key: () => `phase:${selectedPhaseId.value ?? 'none'}`,
-  read: async api => selectedPhaseId.value === null
-    ? null
-    : api.api.phase({ id: selectedPhaseId.value }).get()
-})
-const phaseClientState = useAsyncData(phaseClient.key, phaseClient.read, { deep: true })
-const { data: phase, pending: loading, refresh } = phaseClientState
-
-function EventHover(id: number | null) {
-  if (id !== null) {
-    console.log(`Hovered Event ID: ${id}`)
-  } else {
-    console.log('No event hovered')
-  }
-}
-function TaskHover(id: number | null) {
-  if (id !== null) {
-    console.log(`Hovered Task ID: ${id}`)
-  } else {
-    console.log('No task hovered')
-  }
-}
 </script>
 
 <template>
@@ -52,7 +40,7 @@ function TaskHover(id: number | null) {
       height="100%"
     >
       <p
-        v-if="loading && selectedPhaseId !== null"
+        v-if="loading"
         class="page-state"
         role="status"
       >
@@ -91,13 +79,6 @@ function TaskHover(id: number | null) {
         class="page-state"
       >
         <p>阶段尚未载入。</p>
-        <button
-          class="button"
-          type="button"
-          @click="refresh()"
-        >
-          重新加载
-        </button>
       </div>
     </PageCard>
     <div
@@ -118,8 +99,6 @@ function TaskHover(id: number | null) {
           background-key="home:schedule"
           :weekdays="displayedWeekdays"
           auto-center
-          @event-hover="EventHover($event)"
-          @task-hover="TaskHover($event)"
         />
         <p
           v-else
@@ -137,7 +116,6 @@ function TaskHover(id: number | null) {
       >
         <TaskAttentionList
           :phase-id="phase.id"
-          @task-hover="TaskHover($event)"
         />
       </PageCard>
       <PageCard
@@ -204,5 +182,21 @@ function TaskHover(id: number | null) {
 
 .home-page__tips {
   grid-area: tips;
+}
+
+@media (width < 480px) {
+  .home-page {
+    gap: 0;
+    padding: 0;
+  }
+
+  .home-page__layout {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+    gap: 0;
+  }
+
+  .home-page__schedule {
+    padding: 0;
+  }
 }
 </style>
