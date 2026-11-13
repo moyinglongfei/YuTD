@@ -9,6 +9,8 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "bun-tasks web ::: server",
+    "build": "bun --filter @yutd/server prisma:generate && bun --filter @yutd/web build",
     "postinstall": "bun --filter @yutd/server prisma:generate",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",

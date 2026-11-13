@@ -235,7 +235,7 @@ useSeoMeta({
       @keydown="resizeSidebarWithKeyboard"
     />
     <div class="app-main">
-      <NuxtPage />
+      <NuxtPage :keepalive="{ max: 4 }" />
     </div>
   </div>
 </template>
